@@ -30,9 +30,7 @@ export function createWindow(
       sandbox: true,
       defaultEncoding: 'utf-8',
       nodeIntegration: false,
-      scrollBounce: true,
-      navigateOnDragDrop: false,
-      disableBlinkFeatures: 'Auxclick'
+      navigateOnDragDrop: false
     }
   })
 

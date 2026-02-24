@@ -277,8 +277,7 @@ export class Tray {
       windows.tray.setAlwaysOnTop(true)
     }
     windows.tray.setVisibleOnAllWorkspaces(true, {
-      visibleOnFullScreen: true,
-      skipTransformProcessType: true
+      visibleOnFullScreen: true
     })
     windows.tray.setResizable(false) // Keeps height consistent
     const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
@@ -300,8 +299,7 @@ export class Tray {
       windows.tray.focus()
     }
     windows.tray.setVisibleOnAllWorkspaces(false, {
-      visibleOnFullScreen: true,
-      skipTransformProcessType: true
+      visibleOnFullScreen: true
     })
   }
 

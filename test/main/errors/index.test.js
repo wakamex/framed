@@ -1,8 +1,8 @@
-import * as Sentry from '@sentry/electron'
+import * as Sentry from '@sentry/electron/main'
 import { init } from '../../../main/errors'
 import store from '../../../main/store'
 
-jest.mock('@sentry/electron', () => ({ init: jest.fn(), IPCMode: { Classic: 'test-ipcmode' } }))
+jest.mock('@sentry/electron/main', () => ({ init: jest.fn(), IPCMode: { Classic: 'test-ipcmode' } }))
 
 jest.mock('../../../main/store')
 

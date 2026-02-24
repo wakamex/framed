@@ -1,4 +1,4 @@
-import { app, ipcMain, protocol, clipboard, powerMonitor } from 'electron'
+import { app, ipcMain, protocol, net, clipboard, powerMonitor } from 'electron'
 import path from 'path'
 import log from 'electron-log'
 import url from 'url'
@@ -20,11 +20,9 @@ import { openBlockExplorer, openExternal } from './windows/window'
 import Erc20Contract from './contracts/erc20'
 import { getErrorCode } from '../resources/utils'
 
-app.commandLine.appendSwitch('enable-accelerated-2d-canvas', 'true')
 app.commandLine.appendSwitch('enable-gpu-rasterization', 'true')
 app.commandLine.appendSwitch('force-gpu-rasterization', 'true')
-app.commandLine.appendSwitch('ignore-gpu-blacklist', 'true')
-app.commandLine.appendSwitch('enable-native-gpu-memory-buffers', 'true')
+app.commandLine.appendSwitch('ignore-gpu-blocklist', 'true')
 app.commandLine.appendSwitch('force-color-profile', 'srgb')
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -32,7 +30,7 @@ log.transports.console.level = process.env.LOG_LEVEL || (isDev ? 'verbose' : 'in
 
 if (process.env.LOG_LEVEL === 'debug') {
   log.transports.file.level = 'debug'
-  log.transports.file.resolvePath = () => path.join(app.getPath('userData'), 'logs/debug.log')
+  log.transports.file.resolvePathFn = () => path.join(app.getPath('userData'), 'logs/debug.log')
 } else {
   log.transports.file.level = ['development', 'test'].includes(process.env.NODE_ENV) ? false : 'verbose'
 }
@@ -285,11 +283,15 @@ app.on('ready', () => {
     void loadDev()
   }
 
-  protocol.interceptFileProtocol('file', (req, cb) => {
+  protocol.handle('file', (req) => {
     const appOrigin = path.resolve(__dirname, '../../')
     const filePath = url.fileURLToPath(req.url)
 
-    if (filePath.startsWith(appOrigin)) cb({ path: filePath }) // eslint-disable-line
+    if (filePath.startsWith(appOrigin)) {
+      return net.fetch(url.pathToFileURL(filePath).toString())
+    }
+
+    return new Response('Forbidden', { status: 403 })
   })
 })
 
