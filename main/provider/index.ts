@@ -2,11 +2,9 @@ import EventEmitter from 'events'
 import crypto from 'crypto'
 import log from 'electron-log'
 import { v4 as uuid } from 'uuid'
-import { Web3Provider } from '@ethersproject/providers'
-import { BigNumber } from 'ethers'
-import { estimateL1GasCost } from '@eth-optimism/sdk'
 import { recoverTypedSignature, SignTypedDataVersion } from '@metamask/eth-sig-util'
-import { isAddress } from '@ethersproject/address'
+import { isAddress } from 'viem'
+import { estimateL1GasCost } from './l1Gas'
 import { addHexPrefix, intToHex, isHexString, isHexPrefixed, fromUtf8 } from '@ethereumjs/util'
 
 import store from '../store'
@@ -317,10 +315,10 @@ export class Provider extends EventEmitter {
       : connection.secondary?.provider
 
     if (!connectedProvider) {
-      return BigNumber.from(0)
+      return 0n
     }
 
-    return estimateL1GasCost(new Web3Provider(connectedProvider), txRequest)
+    return estimateL1GasCost(connectedProvider, txRequest)
   }
 
   signAndSend(req: TransactionRequest, cb: Callback<string>) {

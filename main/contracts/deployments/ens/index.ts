@@ -1,5 +1,4 @@
-import { BigNumber } from 'ethers'
-import { Fragment, Interface } from 'ethers/lib/utils'
+import { decodeFunctionData, type Abi, type Hex } from 'viem'
 
 import { registrar as registrarAbi, registrarController as registrarControllerAbi } from './abi'
 import store from '../../../store'
@@ -11,7 +10,6 @@ import type {
   RenewAction as EnsRenewalAction
 } from '../../../transaction/actions/ens'
 
-import type { JsonFragment } from '@ethersproject/abi'
 import type { DecodableContract } from '../../../transaction/actions'
 
 // TODO: fix typing on contract types
@@ -21,24 +19,24 @@ declare module ENS {
   export type Register = {
     name: string
     owner: string
-    duration: BigNumber // seconds
+    duration: bigint // seconds
     resolver?: string
   }
 
   export type Renew = {
     name: string
-    duration: BigNumber // seconds
+    duration: bigint // seconds
   }
 
   export type Transfer = {
     from: string
     to: string
-    tokenId: BigNumber
+    tokenId: bigint
   }
 
   export type Approval = {
     to: string
-    tokenId: BigNumber
+    tokenId: bigint
   }
 }
 
@@ -48,9 +46,8 @@ type DeploymentLocation = {
   chainId: number
 }
 
-function decode(abi: ReadonlyArray<Fragment | JsonFragment | string>, calldata: string) {
-  const contractApi = new Interface(abi)
-  return contractApi.parseTransaction({ data: calldata })
+function decode(abi: Abi, calldata: string) {
+  return decodeFunctionData({ abi, data: calldata as Hex })
 }
 
 function getNameForTokenId(account: string, tokenId: string) {
@@ -73,10 +70,10 @@ const registrar = ({ name = 'ENS Registrar', address, chainId }: DeploymentLocat
     chainId,
     address,
     decode: (calldata: string, { account } = {}) => {
-      const { name, args } = decode(registrarAbi, calldata)
+      const { functionName, args } = decode(registrarAbi as Abi, calldata)
 
-      if (['transferfrom', 'safetransferfrom'].includes(name.toLowerCase())) {
-        const { from, to, tokenId } = args as unknown as ENS.Transfer
+      if (['transferFrom', 'safeTransferFrom'].includes(functionName)) {
+        const [from, to, tokenId] = args as unknown as [string, string, bigint]
         const token = tokenId.toString()
         const name = (account && getNameForTokenId(account, token)) || ''
 
@@ -91,8 +88,8 @@ const registrar = ({ name = 'ENS Registrar', address, chainId }: DeploymentLocat
         } as EnsTransferAction
       }
 
-      if (name === 'approve') {
-        const { to, tokenId } = args as unknown as ENS.Approval
+      if (functionName === 'approve') {
+        const [to, tokenId] = args as unknown as [string, bigint]
         const token = tokenId.toString()
         const name = (account && getNameForTokenId(account, token)) || ''
 
@@ -115,29 +112,33 @@ const registarController = ({
     chainId,
     address,
     decode: (calldata: string) => {
-      const { name, args } = decode(registrarControllerAbi, calldata)
+      const { functionName, args } = decode(registrarControllerAbi as Abi, calldata)
 
-      if (name === 'commit') {
+      if (functionName === 'commit') {
         return {
           id: 'ens:commit'
         }
       }
 
-      if (['register', 'registerwithconfig'].includes(name.toLowerCase())) {
-        const { owner, name, duration } = args as unknown as ENS.Register
+      if (['register', 'registerWithConfig'].includes(functionName)) {
+        const { owner, name, duration } = Object.fromEntries(
+          Object.entries(args as any)
+        ) as unknown as ENS.Register
 
         return {
           id: 'ens:register',
-          data: { address: owner, name: ethName(name), duration: duration.toNumber() }
+          data: { address: owner, name: ethName(name), duration: Number(duration) }
         } as EnsRegistrationAction
       }
 
-      if (name === 'renew') {
-        const { name, duration } = args as unknown as ENS.Renew
+      if (functionName === 'renew') {
+        const { name, duration } = Object.fromEntries(
+          Object.entries(args as any)
+        ) as unknown as ENS.Renew
 
         return {
           id: 'ens:renew',
-          data: { name: ethName(name), duration: duration.toNumber() }
+          data: { name: ethName(name), duration: Number(duration) }
         } as EnsRenewalAction
       }
     }

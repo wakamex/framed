@@ -1,10 +1,13 @@
-import { TransactionDescription } from '@ethersproject/abi'
-import { Contract } from '@ethersproject/contracts'
-import { Web3Provider } from '@ethersproject/providers'
 import { addHexPrefix } from '@ethereumjs/util'
+import {
+  encodeFunctionData,
+  decodeFunctionData,
+  decodeFunctionResult,
+  type Abi,
+  type Hex
+} from 'viem'
 import provider from '../provider'
-import { BigNumber } from 'ethers'
-import { erc20Interface } from '../../resources/contracts'
+import { erc20Abi } from '../../resources/contracts'
 
 export interface TokenData {
   decimals?: number
@@ -13,87 +16,121 @@ export interface TokenData {
   totalSupply?: string
 }
 
-function createWeb3ProviderWrapper(chainId: number) {
-  const wrappedSend = (
-    request: { method: string; params?: any[] },
-    cb: (error: any, response: any) => void
-  ) => {
-    const wrappedPayload = {
-      method: request.method,
-      params: request.params || [],
-      id: 1,
-      jsonrpc: '2.0',
-      _origin: 'frame-internal',
-      chainId: addHexPrefix(chainId.toString(16))
-    } as const
+interface DecodedCallData {
+  functionName: string
+  args: readonly unknown[]
+}
 
-    provider.sendAsync(wrappedPayload, cb)
-  }
+function createRpcCaller(chainId: number) {
+  return (method: string, params: any[]): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const payload = {
+        method,
+        params,
+        id: 1,
+        jsonrpc: '2.0' as const,
+        _origin: 'frame-internal',
+        chainId: addHexPrefix(chainId.toString(16))
+      }
 
-  return {
-    sendAsync: wrappedSend,
-    send: wrappedSend
+      provider.sendAsync(payload, (error: any, response: any) => {
+        if (error) return reject(error)
+        if (response?.error) return reject(new Error(response.error.message || 'RPC error'))
+        resolve(response?.result)
+      })
+    })
   }
 }
 
 export default class Erc20Contract {
-  private contract: Contract
+  private call: (method: string, params: any[]) => Promise<any>
+  private address: Hex
 
   constructor(address: Address, chainId: number) {
-    const web3Provider = new Web3Provider(createWeb3ProviderWrapper(chainId))
-    this.contract = new Contract(address, erc20Interface, web3Provider)
+    this.address = address as Hex
+    this.call = createRpcCaller(chainId)
   }
 
-  static isApproval(data: TransactionDescription) {
-    return (
-      data.name === 'approve' &&
-      data.functionFragment.inputs.length === 2 &&
-      (data.functionFragment.inputs[0].name || '').toLowerCase().endsWith('spender') &&
-      data.functionFragment.inputs[0].type === 'address' &&
-      (data.functionFragment.inputs[1].name || '').toLowerCase().endsWith('value') &&
-      data.functionFragment.inputs[1].type === 'uint256'
-    )
+  static isApproval(data: DecodedCallData) {
+    return data.functionName === 'approve'
   }
 
-  static isTransfer(data: TransactionDescription) {
-    return (
-      data.name === 'transfer' &&
-      data.functionFragment.inputs.length === 2 &&
-      (data.functionFragment.inputs[0].name || '').toLowerCase().endsWith('to') &&
-      data.functionFragment.inputs[0].type === 'address' &&
-      (data.functionFragment.inputs[1].name || '').toLowerCase().endsWith('value') &&
-      data.functionFragment.inputs[1].type === 'uint256'
-    )
+  static isTransfer(data: DecodedCallData) {
+    return data.functionName === 'transfer'
   }
 
   static decodeCallData(calldata: string) {
     try {
-      return erc20Interface.parseTransaction({ data: calldata })
+      return decodeFunctionData({ abi: erc20Abi as Abi, data: calldata as Hex })
     } catch (e) {
       // call does not match ERC-20 interface
     }
   }
 
   static encodeCallData(fn: string, params: any[]) {
-    return erc20Interface.encodeFunctionData(fn, params)
+    return encodeFunctionData({
+      abi: erc20Abi as Abi,
+      functionName: fn,
+      args: params
+    })
+  }
+
+  private async ethCall(data: Hex): Promise<Hex> {
+    return this.call('eth_call', [{ to: this.address, data }, 'latest'])
   }
 
   async getTokenData(): Promise<TokenData> {
-    const calls = await Promise.all([
-      this.contract.decimals().catch(() => 0),
-      this.contract.name().catch(() => ''),
-      this.contract.symbol().catch(() => ''),
-      this.contract
-        .totalSupply()
-        .then((supply: BigNumber) => supply.toString())
-        .catch(() => '') // totalSupply is mandatory on the ERC20 interface
+    const callDecimals = async () => {
+      try {
+        const data = encodeFunctionData({ abi: erc20Abi as Abi, functionName: 'decimals' })
+        const result = await this.ethCall(data)
+        const [decimals] = decodeFunctionResult({ abi: erc20Abi as Abi, functionName: 'decimals', data: result })
+        return Number(decimals)
+      } catch {
+        return 0
+      }
+    }
+
+    const callName = async () => {
+      try {
+        const data = encodeFunctionData({ abi: erc20Abi as Abi, functionName: 'name' })
+        const result = await this.ethCall(data)
+        const [name] = decodeFunctionResult({ abi: erc20Abi as Abi, functionName: 'name', data: result })
+        return name as string
+      } catch {
+        return ''
+      }
+    }
+
+    const callSymbol = async () => {
+      try {
+        const data = encodeFunctionData({ abi: erc20Abi as Abi, functionName: 'symbol' })
+        const result = await this.ethCall(data)
+        const [symbol] = decodeFunctionResult({ abi: erc20Abi as Abi, functionName: 'symbol', data: result })
+        return symbol as string
+      } catch {
+        return ''
+      }
+    }
+
+    const callTotalSupply = async () => {
+      try {
+        const data = encodeFunctionData({ abi: erc20Abi as Abi, functionName: 'totalSupply' })
+        const result = await this.ethCall(data)
+        const [supply] = decodeFunctionResult({ abi: erc20Abi as Abi, functionName: 'totalSupply', data: result })
+        return (supply as bigint).toString()
+      } catch {
+        return ''
+      }
+    }
+
+    const [decimals, name, symbol, totalSupply] = await Promise.all([
+      callDecimals(),
+      callName(),
+      callSymbol(),
+      callTotalSupply()
     ])
 
-    return {
-      decimals: calls[0],
-      name: calls[1],
-      symbol: calls[2],
-      totalSupply: calls[3]
-    }
+    return { decimals, name, symbol, totalSupply }
   }
 }

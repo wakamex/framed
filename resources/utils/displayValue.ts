@@ -1,5 +1,5 @@
 import BigNumber from 'bignumber.js'
-import { isHexString } from 'ethers/lib/utils'
+import { isHex } from 'viem'
 
 import type { Rate } from '../../main/store/state'
 
@@ -134,7 +134,7 @@ export function displayValueData(sourceValue: SourceValue, params: DisplayValueD
     displayFullValue = false
   } = (params || {}) as DisplayValueDataParams
 
-  const bn = BigNumber(sourceValue, isHexString(sourceValue) ? 16 : undefined)
+  const bn = BigNumber(sourceValue, typeof sourceValue === 'string' && isHex(sourceValue) ? 16 : undefined)
   const currencyHelperMap = {
     fiat: ({ displayDecimals } = { displayDecimals: true }) => {
       const nativeCurrency = BigNumber(isTestnet || !currencyRate ? 0 : currencyRate.price)

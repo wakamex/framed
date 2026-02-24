@@ -1,5 +1,5 @@
 import log from 'electron-log'
-import { Interface } from '@ethersproject/abi'
+import { decodeFunctionData, parseAbi, type Abi, type Hex } from 'viem'
 import { fetchSourcifyContract } from './sources/sourcify'
 import { fetchEtherscanContract } from './sources/etherscan'
 
@@ -27,33 +27,38 @@ export interface DecodedCallData {
   }>
 }
 
-function parseAbi(abiData: string): Interface | undefined {
+function tryParseAbi(abiData: string): Abi | undefined {
   try {
-    return new Interface(abiData)
+    return JSON.parse(abiData) as Abi
   } catch (e) {
     log.warn(`could not parse ABI data: ${abiData}`)
   }
 }
 
 export function decodeCallData(calldata: string, abi: string) {
-  const contractInterface = parseAbi(abi)
+  const parsedAbi = tryParseAbi(abi)
 
-  if (contractInterface) {
-    const sighash = calldata.slice(0, 10)
-
+  if (parsedAbi) {
     try {
-      const abiMethod = contractInterface.getFunction(sighash)
-      const decoded = contractInterface.decodeFunctionData(sighash, calldata)
+      const { functionName, args } = decodeFunctionData({ abi: parsedAbi, data: calldata as Hex })
+
+      // Find the matching ABI entry to get input names and types
+      const abiEntry = parsedAbi.find(
+        (entry) => 'name' in entry && entry.name === functionName && entry.type === 'function'
+      )
+
+      const inputs = abiEntry && 'inputs' in abiEntry ? abiEntry.inputs || [] : []
 
       return {
-        method: abiMethod.name,
-        args: abiMethod.inputs.map((input, i) => ({
-          name: input.name,
-          type: input.type,
-          value: decoded[i].toString()
+        method: functionName,
+        args: inputs.map((input, i) => ({
+          name: input.name || `arg${i}`,
+          type: input.type || 'unknown',
+          value: args ? args[i]?.toString() ?? '' : ''
         }))
       }
     } catch (e) {
+      const sighash = calldata.slice(0, 10)
       log.warn('unknown ABI method for signature', sighash)
     }
   }

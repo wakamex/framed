@@ -12,7 +12,7 @@ import {
 import log from 'electron-log'
 import BN from 'bignumber.js'
 import isUtf8 from 'isutf8'
-import { isHexString } from 'ethers/lib/utils'
+import { isHex } from 'viem'
 
 import store from '../store'
 import protectedMethods from '../api/protectedMethods'
@@ -24,7 +24,7 @@ import type { Chain, Permission } from '../store/state'
 const permission = (date: number, method: string) => ({ parentCapability: method, date })
 
 export function decodeMessage(rawMessage: string) {
-  if (isHexString(rawMessage)) {
+  if (isHex(rawMessage)) {
     const buff = Buffer.from(stripHexPrefix(rawMessage), 'hex')
     return buff.length === 32 || !isUtf8(buff) ? rawMessage : buff.toString('utf8')
   }
@@ -92,7 +92,7 @@ export function getRawTx(newTx: RPC.SendTransaction.TxParams): TransactionData {
   const { gas, gasLimit, data, value, type, from, to, ...rawTx } = newTx
   const getNonce = () => {
     // pass through hex string or undefined
-    if (rawTx.nonce === undefined || isHexString(rawTx.nonce)) {
+    if (rawTx.nonce === undefined || isHex(rawTx.nonce)) {
       return rawTx.nonce
     }
 

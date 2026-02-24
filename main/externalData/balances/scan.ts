@@ -1,6 +1,5 @@
 import BigNumber from 'bignumber.js'
-import { BigNumber as EthersBigNumber } from '@ethersproject/bignumber'
-import { Interface } from '@ethersproject/abi'
+import { encodeFunctionData, decodeFunctionResult, type Abi, type Hex } from 'viem'
 import { addHexPrefix } from '@ethereumjs/util'
 import log from 'electron-log'
 
@@ -8,11 +7,10 @@ import multicall, { Call, supportsChain as multicallSupportsChain } from '../../
 import erc20TokenAbi from './erc-20-abi'
 import { groupByChain, TokensByChain } from './reducers'
 
-import type { BytesLike } from '@ethersproject/bytes'
 import type EthereumProvider from 'ethereum-provider'
 import type { Balance, Token } from '../../store/state'
 
-const erc20Interface = new Interface(erc20TokenAbi)
+const erc20Abi = erc20TokenAbi as Abi
 
 interface ExternalBalance {
   balance: string
@@ -42,13 +40,13 @@ function createBalance(rawBalance: string, decimals: number): ExternalBalance {
 }
 
 export default function (eth: EthereumProvider) {
-  function balanceCalls(owner: string, tokens: TokenDefinition[]): Call<EthersBigNumber, ExternalBalance>[] {
+  function balanceCalls(owner: string, tokens: TokenDefinition[]): Call<bigint, ExternalBalance>[] {
     return tokens.map((token) => ({
       target: token.address,
       call: ['function balanceOf(address address) returns (uint256 value)', owner],
       returns: [
-        (bn?: EthersBigNumber) => {
-          const hexString = bn ? bn.toHexString() : '0x00'
+        (bn?: bigint) => {
+          const hexString = bn ? ('0x' + bn.toString(16)) : '0x00'
           return createBalance(hexString, token.decimals)
         }
       ]
@@ -72,17 +70,25 @@ export default function (eth: EthereumProvider) {
   }
 
   async function getTokenBalance(token: TokenDefinition, owner: string) {
-    const functionData = erc20Interface.encodeFunctionData('balanceOf', [owner])
+    const functionData = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [owner]
+    })
 
-    const response: BytesLike = await eth.request({
+    const response: Hex = await eth.request({
       method: 'eth_call',
       chainId: addHexPrefix(token.chainId.toString(16)),
       params: [{ to: token.address, value: '0x0', data: functionData }, 'latest']
     })
 
-    const result = erc20Interface.decodeFunctionResult('balanceOf', response)
+    const [balance] = decodeFunctionResult({
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      data: response
+    }) as [bigint]
 
-    return result.balance.toHexString()
+    return '0x' + balance.toString(16)
   }
 
   async function getTokenBalancesFromContracts(owner: string, tokens: TokenDefinition[]) {
