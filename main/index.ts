@@ -166,7 +166,6 @@ ipcMain.on('tray:clearRequestsByOrigin', (e, account, origin) => {
 
 ipcMain.on('tray:openExternal', (e, url) => {
   openExternal(url)
-  store.setDash({ showing: false })
 })
 
 ipcMain.on('tray:openExplorer', (e, chain, hash, account) => {
@@ -272,7 +271,6 @@ ipcMain.on('frame:unmax', (e) => {
 app.on('ready', () => {
   menu()
   windows.init()
-  if (app.dock) app.dock.hide()
   if (isDev) {
     const loadDev = async () => {
       const { installDevTools, startCpuMonitoring } = await import('./dev')
@@ -302,9 +300,9 @@ ipcMain.on('tray:action', (e, action, ...args) => {
 
 app.on('second-instance', (event, argv, workingDirectory) => {
   log.info(`second instance requested from directory: ${workingDirectory}`)
-  windows.showTray()
+  windows.showWindow()
 })
-app.on('activate', () => windows.showTray())
+app.on('activate', () => windows.showWindow())
 
 app.on('before-quit', () => {
   if (!updater.updateReady) {

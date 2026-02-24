@@ -426,7 +426,7 @@ class FrameAccount {
       }
 
       setTimeout(() => {
-        windows.showTray()
+        windows.showWindow()
       }, 100)
     }
 

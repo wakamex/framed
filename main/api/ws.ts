@@ -114,7 +114,7 @@ const handler = (socket: FrameWebSocket, req: IncomingMessage) => {
 
     if (origin === 'frame-extension') {
       // custom extension action for summoning Frame
-      if (rawPayload.method === 'frame_summon') return windows.toggleTray()
+      if (rawPayload.method === 'frame_summon') return windows.showWindow()
 
       const { id, jsonrpc } = rawPayload
       if (rawPayload.method === 'eth_chainId') return res({ id, jsonrpc, result: chainId })
