@@ -2,20 +2,24 @@ import 'tailwindcss'
 import { createRoot } from 'react-dom/client'
 import { useEffect } from 'react'
 
-import { initializeApp, sendEvent } from './ipc'
-import { useStore, useCurrentView, usePendingRequests } from './store'
+import { initializeApp, sendEvent, sendAction } from './ipc'
+import { useStore, useCurrentView, useAccounts, usePendingRequests } from './store'
 import AccountsView from './views/Accounts'
 import SignersView from './views/Signers'
 import ChainsView from './views/Chains'
 import TokensView from './views/Tokens'
 import SettingsView from './views/Settings'
 import RequestOverlay from './views/Requests'
+import OnboardView from './views/Onboard'
+import SendView from './views/Send'
 
 function App() {
   const initialized = useStore((s) => s.initialized)
   const currentView = useCurrentView()
   const setView = useStore((s) => s.setView)
   const colorway = useStore((s) => s.main?.colorway)
+  const accounts = useAccounts()
+  const onboardingComplete = useStore((s) => s.main?.mute?.onboardingWindow)
 
   useEffect(() => {
     if (colorway) {
@@ -32,6 +36,16 @@ function App() {
     )
   }
 
+  // Show onboarding when no accounts exist and it hasn't been dismissed
+  const hasAccounts = Object.keys(accounts).length > 0
+  if (!hasAccounts && !onboardingComplete) {
+    return (
+      <div className="h-screen bg-gray-900">
+        <OnboardView onComplete={() => sendAction('completeOnboarding')} />
+      </div>
+    )
+  }
+
   const pendingRequests = usePendingRequests()
 
   return (
@@ -40,6 +54,7 @@ function App() {
       <nav className="w-48 bg-gray-900 border-r border-gray-800 flex flex-col p-3 gap-1">
         <div className="text-lg font-semibold text-gray-100 px-3 py-2 mb-2">Frame</div>
         <NavItem label="Accounts" view="accounts" current={currentView} onClick={setView} />
+        <NavItem label="Send" view="send" current={currentView} onClick={setView} />
         <NavItem label="Signers" view="signers" current={currentView} onClick={setView} />
         <NavItem label="Chains" view="chains" current={currentView} onClick={setView} />
         <NavItem label="Tokens" view="tokens" current={currentView} onClick={setView} />
@@ -88,6 +103,8 @@ function ViewContent({ view }: { view: string }) {
   switch (view) {
     case 'accounts':
       return <AccountsView />
+    case 'send':
+      return <SendView />
     case 'signers':
       return <SignersView />
     case 'chains':
