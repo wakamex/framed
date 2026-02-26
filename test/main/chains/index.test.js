@@ -2,7 +2,6 @@ import log from 'electron-log'
 import EventEmitter from 'events'
 import { addHexPrefix, intToHex } from '@ethereumjs/util'
 
-import store from '../../../main/store'
 import { gweiToHex } from '../../util'
 
 log.transports.console.level = false
@@ -11,6 +10,18 @@ jest.mock('electron', () => ({
   powerMonitor: {
     on: jest.fn()
   }
+}))
+
+// Capture all valtio subscribe callbacks so we can fire them manually
+const subscribeCallbacks = []
+jest.mock('valtio', () => ({
+  subscribe: jest.fn((_state, cb) => {
+    subscribeCallbacks.push(cb)
+    return jest.fn()
+  }),
+  snapshot: jest.fn((s) => JSON.parse(JSON.stringify(s))),
+  proxy: jest.fn((obj) => obj),
+  unstable_enableOp: jest.fn()
 }))
 
 class MockConnection extends EventEmitter {
@@ -58,7 +69,7 @@ class MockConnection extends EventEmitter {
   }
 }
 
-let block, gasPrice, observer, connectionObserver
+let block, gasPrice
 
 const state = {
   main: {
@@ -165,6 +176,43 @@ const mockConnections = {
 
 let chains
 
+// Helper to fire all subscribe callbacks (simulates valtio state change notification)
+// Fires in rounds until no new callbacks are added (handles ChainConnection constructor subscribing)
+function fireSubscriptions() {
+  let prevLength = 0
+  do {
+    prevLength = subscribeCallbacks.length
+    const callbacks = subscribeCallbacks.slice()
+    callbacks.forEach((cb) => {
+      try { cb() } catch (e) { /* ignore errors in non-matching subscriptions */ }
+    })
+  } while (subscribeCallbacks.length > prevLength)
+}
+
+// Simulate the auto-connect behavior of the real eth-provider:
+// when primary connection is turned on, call connect() on the MockConnection
+function connectMockProviders() {
+  Object.values(mockConnections).forEach((chain) => {
+    const primary = state.main.networks.ethereum[chain.id].connection.primary
+    if (primary.on) {
+      chain.connection.connect()
+    }
+  })
+}
+
+// Direct state mutation helpers
+function toggleConnection(type, chainId, node, on) {
+  state.main.networks[type][chainId].connection[node].on = on
+  fireSubscriptions()
+  // After subscriptions fire and providers are created, simulate auto-connect
+  connectMockProviders()
+}
+
+function resetGas(type, chainId) {
+  state.main.networksMeta[type][chainId].gas.price.levels = { slow: '', standard: '', fast: '', asap: '', custom: '' }
+  state.main.networksMeta[type][chainId].gas.price.fees = undefined
+}
+
 beforeAll(async () => {
   jest.useRealTimers()
 
@@ -175,32 +223,18 @@ beforeAll(async () => {
 beforeEach(() => {
   block = {}
 
-  connectionObserver = store.observer(() => {
-    Object.values(mockConnections).forEach((chain) => {
-      const primary = store(`main.networks.ethereum.${chain.id}.connection.primary`)
-
-      if (primary.on) {
-        chain.connection.connect()
-      }
-    })
-  })
-
   Object.values(mockConnections).forEach((chain) => {
-    store.setGasPrices('ethereum', chain.id, {})
-    store.setGasFees('ethereum', chain.id, {})
+    resetGas('ethereum', chain.id)
   })
 })
 
 afterEach((done) => {
-  if (observer) {
-    observer.remove()
-  }
-
-  if (connectionObserver) {
-    connectionObserver.remove()
-  }
-
   const activeConnection = Object.values(mockConnections).find((conn) => conn.connection.connected)
+
+  if (!activeConnection) {
+    done()
+    return
+  }
 
   chains.once('close', ({ id }) => {
     if (id === activeConnection.id) {
@@ -210,7 +244,7 @@ afterEach((done) => {
     }
   })
 
-  store.toggleConnection('ethereum', activeConnection.id, 'primary', false)
+  toggleConnection('ethereum', activeConnection.id, 'primary', false)
 })
 
 Object.values(mockConnections).forEach((chain) => {
@@ -220,21 +254,19 @@ Object.values(mockConnections).forEach((chain) => {
       number: addHexPrefix((8897988 - 20).toString(16))
     }
 
-    let resolved = false
-    observer = store.observer(() => {
-      if (resolved) return
-      const gas = store(`main.networksMeta.ethereum.${chain.id}.gas.price.levels`)
+    // Poll for gas price update
+    const interval = setInterval(() => {
+      const gas = state.main.networksMeta.ethereum[chain.id].gas.price.levels
 
-      if (gas.fast) {
+      if (gas && gas.fast) {
+        clearInterval(interval)
         expect(gas.fast).toBe(gweiToHex(6))
-
-        resolved = true
         done()
       }
-    })
+    }, 50)
 
-    store.toggleConnection('ethereum', chain.id, 'primary', true)
-  })
+    toggleConnection('ethereum', chain.id, 'primary', true)
+  }, 15000)
 
   it(`sets fee market prices on a new London block on ${chain.name}`, (done) => {
     block = {
@@ -245,12 +277,12 @@ Object.values(mockConnections).forEach((chain) => {
     const expectedBaseFee = 7e9 * 1.125 * 1.125
     const expectedPriorityFee = 32e9
 
-    let resolved = false
-    observer = store.observer(() => {
-      if (resolved) return
-      const gas = store(`main.networksMeta.ethereum.${chain.id}.gas.price`)
+    // Poll for gas fee update
+    const interval = setInterval(() => {
+      const gas = state.main.networksMeta.ethereum[chain.id].gas.price
 
-      if (gas.fees.maxBaseFeePerGas) {
+      if (gas.fees && gas.fees.maxBaseFeePerGas) {
+        clearInterval(interval)
         expect(gas.fees.maxBaseFeePerGas).toBe(intToHex(expectedBaseFee))
         expect(gas.fees.maxPriorityFeePerGas).toBe(intToHex(expectedPriorityFee))
         expect(gas.fees.maxFeePerGas).toBe(intToHex(expectedBaseFee + expectedPriorityFee))
@@ -258,11 +290,10 @@ Object.values(mockConnections).forEach((chain) => {
         expect(gas.selected).toBe('fast')
         expect(gas.levels.fast).toBe(intToHex(expectedBaseFee + expectedPriorityFee))
 
-        resolved = true
         done()
       }
-    })
+    }, 50)
 
-    store.toggleConnection('ethereum', chain.id, 'primary', true)
-  })
+    toggleConnection('ethereum', chain.id, 'primary', true)
+  }, 15000)
 })

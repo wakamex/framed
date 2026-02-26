@@ -5,6 +5,15 @@ import { toTokenId } from '../../../resources/domain/balance'
 import BalancesWorkerController from './controller'
 import { CurrencyBalance, TokenBalance } from './scan'
 
+import {
+  setBalance,
+  setBalances,
+  addKnownTokens,
+  removeKnownTokens,
+  removeBalances,
+  accountTokensUpdated
+} from '../../store/actions'
+
 import type { Balance, Chain, Token, WithTokenId } from '../../store/state'
 
 const RESTART_WAIT = 5 // seconds
@@ -15,27 +24,27 @@ const scanInterval = {
   inactive: 60 * 10
 }
 
-export default function (store: Store) {
+export default function (state: any) {
   const storeApi = {
-    getActiveAddress: () => (store('selected.current') || '') as Address,
-    getNetwork: (id: number) => (store('main.networks.ethereum', id) || {}) as Chain,
+    getActiveAddress: () => (state.selected?.current || '') as Address,
+    getNetwork: (id: number) => (state.main.networks.ethereum?.[id] || {}) as Chain,
     getNativeCurrencySymbol: (id: number) =>
-      store('main.networksMeta.ethereum', id, 'nativeCurrency', 'symbol') as string,
+      state.main.networksMeta?.ethereum?.[id]?.nativeCurrency?.symbol as string,
     getConnectedNetworks: () => {
-      const networks = Object.values(store('main.networks.ethereum') || {}) as Chain[]
+      const networks = Object.values(state.main.networks.ethereum || {}) as Chain[]
       return networks.filter(
         (n) => (n.connection.primary || {}).connected || (n.connection.secondary || {}).connected
       )
     },
-    getCustomTokens: () => (store('main.tokens.custom') || []) as Token[],
-    getKnownTokens: (address?: Address): Token[] => (address && store('main.tokens.known', address)) || [],
+    getCustomTokens: () => (state.main.tokens.custom || []) as Token[],
+    getKnownTokens: (address?: Address): Token[] => (address && (state.main.tokens.known as any)?.[address]) || [],
     getCurrencyBalances: (address: Address) => {
-      return ((store('main.balances', address) || []) as Balance[]).filter(
+      return (((state.main.balances as any)?.[address] || []) as Balance[]).filter(
         (balance) => balance.address === NATIVE_CURRENCY
       )
     },
     getTokenBalances: (address: Address) => {
-      return ((store('main.balances', address) || []) as Balance[]).filter(
+      return (((state.main.balances as any)?.[address] || []) as Balance[]).filter(
         (balance) => balance.address !== NATIVE_CURRENCY
       )
     }
@@ -201,7 +210,7 @@ export default function (store: Store) {
   function handleUpdate(address: Address, updateFn: (address: Address) => void) {
     // because updates come from another process its possible to receive updates after an account
     // has been removed but before we stop the scan, so check to make sure the account exists
-    if (store('main.accounts', address)) {
+    if ((state.main.accounts as any)?.[address]) {
       updateFn(address)
     }
   }
@@ -216,7 +225,7 @@ export default function (store: Store) {
           (currentChainBalances.find((b) => b.chainId === balance.chainId) || {}).balance !== balance.balance
       )
       .forEach((balance) => {
-        store.setBalance(address, {
+        setBalance(address, {
           ...balance,
           symbol: storeApi.getNativeCurrencySymbol(balance.chainId),
           address: NATIVE_CURRENCY
@@ -243,7 +252,7 @@ export default function (store: Store) {
     })
 
     if (changedBalances.length > 0) {
-      store.setBalances(address, changedBalances)
+      setBalances(address, changedBalances)
 
       const knownTokens = new Set(storeApi.getKnownTokens(address).map(toTokenId))
       const isKnown = (balance: TokenBalance) => knownTokens.has(toTokenId(balance))
@@ -252,7 +261,7 @@ export default function (store: Store) {
       const unknownBalances = changedBalances.filter((b) => parseInt(b.balance) > 0 && !isKnown(b))
 
       if (unknownBalances.length > 0) {
-        store.addKnownTokens(address, unknownBalances)
+        addKnownTokens(address, unknownBalances)
       }
 
       // remove zero balances from the list of known tokens
@@ -265,29 +274,29 @@ export default function (store: Store) {
       }, new Set<string>())
 
       if (zeroBalances.size) {
-        store.removeKnownTokens(address, zeroBalances)
+        removeKnownTokens(address, zeroBalances)
       }
     }
 
-    store.accountTokensUpdated(address)
+    accountTokensUpdated(address)
   }
 
   function handleTokenBlacklistUpdate(tokensToRemove: Set<string>) {
     const includesBlacklistedTokens = (arr: WithTokenId[]) =>
       arr.some((val) => tokensToRemove.has(toTokenId(val)))
 
-    const balances: Record<string, Balance[]> = store('main.balances')
-    const knownTokens: Record<string, Token[]> = store('main.tokens.known')
+    const balances: Record<string, Balance[]> = (state.main.balances as any) || {}
+    const knownTokens: Record<string, Token[]> = (state.main.tokens.known as any) || {}
 
     Object.entries(balances).forEach(([accountAddress, balances]) => {
       if (includesBlacklistedTokens(balances)) {
-        store.removeBalances(accountAddress, tokensToRemove)
+        removeBalances(accountAddress, tokensToRemove)
       }
     })
 
     Object.entries(knownTokens).forEach(([accountAddress, tokens]) => {
       if (includesBlacklistedTokens(tokens)) {
-        store.removeKnownTokens(accountAddress, tokensToRemove)
+        removeKnownTokens(accountAddress, tokensToRemove)
       }
     })
   }

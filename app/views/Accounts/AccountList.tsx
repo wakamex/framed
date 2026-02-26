@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
+import { useSnapshot } from 'valtio'
 import type { Account } from '../../types'
-import { useAccounts, useSigners, useAccountsMeta, useStore, useNetworksMeta } from '../../store'
+import { state, setSelectedAccount, useAccounts, useSigners, useAccountsMeta, useNetworksMeta } from '../../store'
 import { accountSort } from '../../../resources/domain/account'
 import { getSignerDisplayType } from '../../../resources/domain/signer'
 import Address from '../../components/Address'
@@ -14,8 +15,8 @@ export default function AccountList({ onAdd }: AccountListProps) {
   const accounts = useAccounts()
   const signers = useSigners()
   const accountsMeta = useAccountsMeta()
-  const selectedAccount = useStore((s) => s.selectedAccount)
-  const setSelectedAccount = useStore((s) => s.setSelectedAccount)
+  const snap = useSnapshot(state)
+  const selectedAccount = snap.selectedAccount
 
   const sortedAccounts = useMemo(() => {
     return Object.values(accounts).sort(accountSort)

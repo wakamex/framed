@@ -2,7 +2,7 @@ import { BrowserWindow, BrowserWindowConstructorOptions, shell } from 'electron'
 import log from 'electron-log'
 import path from 'path'
 
-import store from '../store'
+import state from '../store'
 
 import type { ChainId } from '../store/state'
 
@@ -68,7 +68,7 @@ export function openExternal(url = '') {
 
 export function openBlockExplorer({ id, type }: ChainId, hash?: string, account?: string) {
   // remove trailing slashes from the base url
-  const explorer = (store('main.networks', type, id, 'explorer') || '').replace(/\/+$/, '')
+  const explorer = (state.main.networks[type]?.[id]?.explorer || '').replace(/\/+$/, '')
 
   if (explorer) {
     if (hash) {

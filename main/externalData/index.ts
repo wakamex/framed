@@ -1,7 +1,9 @@
 import log from 'electron-log'
 import Pylon from '@framelabs/pylon-client'
 
-import store from '../store'
+import { subscribe } from 'valtio'
+
+import state from '../store'
 import Inventory from './inventory'
 import Rates from './assets'
 import Balances from './balances'
@@ -14,11 +16,11 @@ export interface DataScanner {
 }
 
 const storeApi = {
-  getActiveAddress: () => (store('selected.current') || '') as Address,
-  getCustomTokens: () => (store('main.tokens.custom') || []) as Token[],
-  getKnownTokens: (address?: Address) => ((address && store('main.tokens.known', address)) || []) as Token[],
+  getActiveAddress: () => ((state as any).selected?.current || '') as Address,
+  getCustomTokens: () => (state.main.tokens.custom || []) as Token[],
+  getKnownTokens: (address?: Address) => ((address && (state.main.tokens.known as any)?.[address]) || []) as Token[],
   getConnectedNetworks: () => {
-    const networks = Object.values(store('main.networks.ethereum') || {}) as Chain[]
+    const networks = Object.values(state.main.networks.ethereum || {}) as Chain[]
     return networks.filter(
       (n) => (n.connection.primary || {}).connected || (n.connection.secondary || {}).connected
     )
@@ -28,9 +30,9 @@ const storeApi = {
 export default function () {
   const pylon = new Pylon('wss://data.pylon.link')
 
-  const inventory = Inventory(pylon, store)
-  const rates = Rates(pylon, store)
-  const balances = Balances(store)
+  const inventory = Inventory(pylon, state)
+  const rates = Rates(pylon, state)
+  const balances = Balances(state)
 
   let connectedChains: number[] = [],
     activeAccount: Address = ''
@@ -68,7 +70,7 @@ export default function () {
     rates.updateSubscription(connectedChains, activeAccount)
   })
 
-  const allNetworksObserver = store.observer(() => {
+  const unsubNetworks = subscribe(state, () => {
     const connectedNetworkIds = storeApi
       .getConnectedNetworks()
       .map((n) => n.id)
@@ -80,9 +82,9 @@ export default function () {
 
       handleNetworkUpdate(newlyConnectedNetworks)
     }
-  }, 'externalData:networks')
+  })
 
-  const activeAddressObserver = store.observer(() => {
+  const unsubActiveAddress = subscribe(state, () => {
     const activeAddress = storeApi.getActiveAddress()
     const knownTokens = storeApi.getKnownTokens(activeAddress)
 
@@ -92,15 +94,15 @@ export default function () {
     } else {
       handleTokensUpdate(knownTokens)
     }
-  }, 'externalData:activeAccount')
+  })
 
-  const customTokensObserver = store.observer(() => {
+  const unsubCustomTokens = subscribe(state, () => {
     const customTokens = storeApi.getCustomTokens()
     handleTokensUpdate(customTokens)
-  }, 'externalData:customTokens')
+  })
 
-  const trayObserver = store.observer(() => {
-    const open = store('tray.open')
+  const unsubTray = subscribe(state, () => {
+    const open = (state as any).tray?.open
 
     if (!open) {
       // pause balance scanning after the tray is out of view for one minute
@@ -115,14 +117,14 @@ export default function () {
         balances.resume()
       }
     }
-  }, 'externalData:tray')
+  })
 
   return {
     close: () => {
-      allNetworksObserver.remove()
-      activeAddressObserver.remove()
-      customTokensObserver.remove()
-      trayObserver.remove()
+      unsubNetworks()
+      unsubActiveAddress()
+      unsubCustomTokens()
+      unsubTray()
 
       inventory.stop()
       rates.stop()

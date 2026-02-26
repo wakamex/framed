@@ -2,9 +2,11 @@ import log from 'electron-log'
 
 import type { DeviceUniquePath, Device as TrezorDevice } from '@trezor/connect'
 
+import { subscribe } from 'valtio'
 import { SignerAdapter } from '../adapters'
 import Trezor, { Status } from './Trezor'
-import store from '../../store'
+import state from '../../store'
+import { navReplace } from '../../store/actions'
 import TrezorBridge from './bridge'
 
 interface KnownSigners {
@@ -18,15 +20,15 @@ interface KnownSigners {
 
 export default class TrezorSignerAdapter extends SignerAdapter {
   private knownSigners: KnownSigners = {}
-  private observer?: Observer
+  private observer?: () => void
 
   constructor() {
     super('trezor')
   }
 
   open() {
-    this.observer = store.observer(() => {
-      const trezorDerivation = store('main.trezor.derivation')
+    this.observer = subscribe(state, () => {
+      const trezorDerivation = state.main.trezor.derivation
 
       Object.values(this.knownSigners).forEach((signerInfo) => {
         const trezor = signerInfo.signer
@@ -54,7 +56,7 @@ export default class TrezorSignerAdapter extends SignerAdapter {
       const id = Trezor.generateId(device.path)
       const trezor = this.knownSigners[id]?.signer || this.initTrezor(device.path)
 
-      trezor.derivation = store('main.trezor.derivation')
+      trezor.derivation = state.main.trezor.derivation
 
       try {
         await trezor.open(device)
@@ -166,7 +168,7 @@ export default class TrezorSignerAdapter extends SignerAdapter {
     this.emit('add', trezor)
 
     // Show signer in dash window
-    store.navReplace('dash', [
+    navReplace('dash', [
       {
         view: 'expandedSigner',
         data: { signer: trezor.id }
@@ -190,7 +192,7 @@ export default class TrezorSignerAdapter extends SignerAdapter {
 
   close() {
     if (this.observer) {
-      this.observer.remove()
+      this.observer()
       this.observer = undefined
     }
 

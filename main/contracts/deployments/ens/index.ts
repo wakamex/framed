@@ -1,7 +1,7 @@
 import { decodeFunctionData, type Abi, type Hex } from 'viem'
 
 import { registrar as registrarAbi, registrarController as registrarControllerAbi } from './abi'
-import store from '../../../store'
+import state from '../../../store'
 
 import type {
   ApproveAction as EnsApprovalAction,
@@ -51,7 +51,7 @@ function decode(abi: Abi, calldata: string) {
 }
 
 function getNameForTokenId(account: string, tokenId: string) {
-  const ensInventory: InventoryCollection = store('main.inventory', account, 'ens') || {}
+  const ensInventory: InventoryCollection = (state.main.inventory as any)?.[account]?.ens || {}
   const items = ensInventory.items || {}
 
   const record = Object.values(items).find((ens) => ens.tokenId === tokenId) || { name: '' }

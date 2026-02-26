@@ -12,7 +12,7 @@ import hot from './hot'
 import RingSigner from './hot/RingSigner'
 import HotSigner from './hot/HotSigner'
 
-import store from '../store'
+import { newSigner, removeSigner, navClearSigner, updateSigner } from '../store/actions'
 
 const registeredAdapters = [new LedgerAdapter(), new TrezorAdapter(), new LatticeAdapter()]
 
@@ -102,7 +102,7 @@ class Signers extends EventEmitter {
     if (!(id in this.signers)) {
       this.signers[id] = signer
 
-      store.newSigner(signer.summary())
+      newSigner(signer.summary())
     }
   }
 
@@ -111,8 +111,8 @@ class Signers extends EventEmitter {
 
     if (signer) {
       delete this.signers[id]
-      store.removeSigner(id)
-      store.navClearSigner(id)
+      removeSigner(id)
+      navClearSigner(id)
 
       const type = signer.type === 'ring' || signer.type === 'seed' ? 'hot' : signer.type
 
@@ -132,7 +132,7 @@ class Signers extends EventEmitter {
     if (id in this.signers) {
       this.signers[id] = signer
 
-      store.updateSigner(signer.summary())
+      updateSigner(signer.summary())
     } else {
       this.add(signer)
     }

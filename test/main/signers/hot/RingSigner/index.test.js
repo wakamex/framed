@@ -10,6 +10,7 @@ const FILE_PATH = path.resolve(__dirname, 'keystore.json')
 
 jest.mock('electron')
 jest.mock('../../../../../main/store/persist')
+jest.mock('../../../../../main/store')
 
 // Stubs
 const signers = { add: () => {} }

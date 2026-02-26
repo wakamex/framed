@@ -7,7 +7,10 @@ import { isAddress } from 'viem'
 import { estimateL1GasCost } from './l1Gas'
 import { addHexPrefix, intToHex, isHexString, isHexPrefixed, fromUtf8 } from '@ethereumjs/util'
 
-import store from '../store'
+import { subscribe } from 'valtio'
+
+import state from '../store'
+import { switchOriginChain } from '../store/actions'
 import packageFile from '../../package.json'
 
 import proxyConnection from './proxy'
@@ -76,7 +79,7 @@ export interface TransactionMetadata {
 }
 
 const storeApi = {
-  getOrigin: (id: string) => store('main.origins', id) as Origin
+  getOrigin: (id: string) => state.main.origins[id] as Origin
 }
 
 const getPayloadOrigin = ({ _origin }: RPCRequestPayload) => storeApi.getOrigin(_origin)
@@ -196,7 +199,7 @@ export class Provider extends EventEmitter {
   }
 
   getNetVersion(payload: RPCRequestPayload, res: RPCRequestCallback, targetChain: Chain) {
-    const chain = store('main.networks.ethereum', targetChain.id)
+    const chain = state.main.networks.ethereum[targetChain.id]
     const response = chain?.on
       ? { result: targetChain.id }
       : { error: { message: 'not connected', code: -1 } }
@@ -205,7 +208,7 @@ export class Provider extends EventEmitter {
   }
 
   getChainId(payload: RPCRequestPayload, res: RPCSuccessCallback, targetChain: Chain) {
-    const chain = store('main.networks.ethereum', targetChain.id)
+    const chain = state.main.networks.ethereum[targetChain.id]
     const response = chain?.on
       ? { result: intToHex(targetChain.id) }
       : { error: { message: 'not connected', code: -1 } }
@@ -335,7 +338,7 @@ export class Provider extends EventEmitter {
 
     if (feeTotalOverMax(rawTx, maxTotalFee)) {
       const chainId = parseInt(rawTx.chainId)
-      const symbol = store(`main.networks.ethereum.${chainId}.symbol`)
+      const symbol = state.main.networks.ethereum[chainId]?.symbol
       const displayAmount = symbol ? ` (${Math.floor(maxTotalFee / 1e18)} ${symbol})` : ''
 
       const err = `Max fee is over hard limit${displayAmount}`
@@ -825,7 +828,7 @@ export class Provider extends EventEmitter {
       if (!Number.isInteger(chainId)) throw new Error('Invalid chain id')
 
       // Check if chain exists
-      const exists = Boolean(store('main.networks.ethereum', chainId))
+      const exists = Boolean(state.main.networks.ethereum[chainId])
       if (!exists) {
         const err: EVMError = { message: 'Chain does not exist', code: 4902 }
         return resError(err, payload, res)
@@ -834,7 +837,7 @@ export class Provider extends EventEmitter {
       const originId = payload._origin
       const origin = getPayloadOrigin(payload)
       if (origin.chain.id !== chainId) {
-        store.switchOriginChain(originId, chainId, origin.chain.type)
+        switchOriginChain(originId, chainId, origin.chain.type)
       }
 
       return res({ id: payload.id, jsonrpc: '2.0', result: null })
@@ -859,7 +862,7 @@ export class Provider extends EventEmitter {
     const id = parseInt(chainId, 16)
     if (!Number.isInteger(id)) return resError('Invalid chain id', payload, res)
 
-    const exists = Boolean(store('main.networks', type, id))
+    const exists = Boolean(state.main.networks[type]?.[id])
     if (exists) {
       // Ask user if they want to switch chains
       this.switchEthereumChain(payload, res)
@@ -916,7 +919,7 @@ export class Provider extends EventEmitter {
         }
 
         // don't attempt to add the token if it's already been added
-        const tokenExists = store('main.tokens.custom').some(
+        const tokenExists = (state.main.tokens.custom || []).some(
           (token: Token) => token.chainId === chainId && token.address === address
         )
         if (tokenExists) {
@@ -1095,8 +1098,8 @@ export class Provider extends EventEmitter {
 
 const provider = new Provider()
 
-store.observer(ChainsObserver(provider), 'provider:chains')
-store.observer(OriginChainObserver(provider), 'provider:origins')
-store.observer(AssetsObserver(provider), 'provider:assets')
+subscribe(state, ChainsObserver(provider))
+subscribe(state, OriginChainObserver(provider))
+subscribe(state, AssetsObserver(provider))
 
 export default provider

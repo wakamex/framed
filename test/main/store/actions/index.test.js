@@ -2,6 +2,10 @@ import BigNumber from 'bignumber.js'
 import log from 'electron-log'
 import { addHexPrefix } from '@ethereumjs/util'
 
+jest.mock('../../../../main/store/persist')
+jest.mock('../../../../main/store')
+
+import state from '../../../../main/store'
 import {
   addNetwork as addNetworkAction,
   removeBalance as removeBalanceAction,
@@ -36,6 +40,10 @@ afterAll(() => {
   log.transports.console.level = 'debug'
 })
 
+afterEach(() => {
+  state.__clear()
+})
+
 const owner = '0xa8be0f701d0f37088600164e71bffc0ad652c251'
 
 const testTokens = {
@@ -63,84 +71,71 @@ describe('#addNetwork', () => {
     symbol: 'MATIC'
   }
 
-  let networks, networksMeta
-
-  const updaterFn = (node, update) => {
-    if (node !== 'main') throw new Error(`attempted to update wrong node: ${node}`)
-    update({ networks, networksMeta })
-  }
-
-  const addNetwork = (network) => addNetworkAction(updaterFn, network)
-
   beforeEach(() => {
-    networks = { ethereum: {} }
-    networksMeta = { ethereum: {} }
+    state.main.networks = { ethereum: {} }
+    state.main.networksMeta = { ethereum: {} }
   })
 
   it('adds a network with the correct id', () => {
-    addNetwork(polygonNetwork)
+    addNetworkAction(polygonNetwork)
 
-    expect(networks.ethereum['137'].id).toBe(137)
+    expect(state.main.networks.ethereum['137'].id).toBe(137)
   })
 
   it('adds a network with the correct id if the id is a number represented as a string', () => {
-    addNetwork({ ...polygonNetwork, id: '137' })
+    addNetworkAction({ ...polygonNetwork, id: '137' })
 
-    expect(networks.ethereum['137'].id).toBe(137)
+    expect(state.main.networks.ethereum['137'].id).toBe(137)
   })
 
   it('adds a network with the correct name', () => {
-    addNetwork(polygonNetwork)
+    addNetworkAction(polygonNetwork)
 
-    expect(networks.ethereum['137'].name).toBe('Polygon')
+    expect(state.main.networks.ethereum['137'].name).toBe('Polygon')
   })
 
   it('adds a network with the correct symbol', () => {
-    addNetwork(polygonNetwork)
+    addNetworkAction(polygonNetwork)
 
-    expect(networks.ethereum['137'].symbol).toBe('MATIC')
+    expect(state.main.networks.ethereum['137'].symbol).toBe('MATIC')
   })
 
   it('adds a network with the correct explorer', () => {
-    addNetwork(polygonNetwork)
+    addNetworkAction(polygonNetwork)
 
-    expect(networks.ethereum['137'].explorer).toBe('https://polygonscan.com')
+    expect(state.main.networks.ethereum['137'].explorer).toBe('https://polygonscan.com')
   })
 
   it('adds a network that is on by default', () => {
-    addNetwork(polygonNetwork)
+    addNetworkAction(polygonNetwork)
 
-    expect(networks.ethereum['137'].on).toBe(true)
+    expect(state.main.networks.ethereum['137'].on).toBe(true)
   })
 
   it('adds a network with the correct primary RPC', () => {
-    polygonNetwork.primaryRpc = 'https://polygon-rpc.com'
+    addNetworkAction({ ...polygonNetwork, primaryRpc: 'https://polygon-rpc.com' })
 
-    addNetwork(polygonNetwork)
-
-    expect(networks.ethereum['137'].primaryRpc).toBeUndefined()
-    expect(networks.ethereum['137'].connection.primary.custom).toBe('https://polygon-rpc.com')
+    expect(state.main.networks.ethereum['137'].primaryRpc).toBeUndefined()
+    expect(state.main.networks.ethereum['137'].connection.primary.custom).toBe('https://polygon-rpc.com')
   })
 
   it('adds a network with the correct secondary RPC', () => {
-    polygonNetwork.secondaryRpc = 'https://rpc-mainnet.matic.network'
+    addNetworkAction({ ...polygonNetwork, secondaryRpc: 'https://rpc-mainnet.matic.network' })
 
-    addNetwork(polygonNetwork)
-
-    expect(networks.ethereum['137'].secondaryRpc).toBeUndefined()
-    expect(networks.ethereum['137'].connection.secondary.custom).toBe('https://rpc-mainnet.matic.network')
+    expect(state.main.networks.ethereum['137'].secondaryRpc).toBeUndefined()
+    expect(state.main.networks.ethereum['137'].connection.secondary.custom).toBe('https://rpc-mainnet.matic.network')
   })
 
   it('adds a network with the correct default connection presets', () => {
-    addNetwork(polygonNetwork)
+    addNetworkAction(polygonNetwork)
 
-    expect(networks.ethereum['137'].connection.presets).toEqual({ local: 'direct' })
+    expect(state.main.networks.ethereum['137'].connection.presets).toEqual({ local: 'direct' })
   })
 
   it('adds a network with the correct default primary connection settings', () => {
-    addNetwork(polygonNetwork)
+    addNetworkAction(polygonNetwork)
 
-    expect(networks.ethereum['137'].connection.primary).toEqual({
+    expect(state.main.networks.ethereum['137'].connection.primary).toEqual({
       on: true,
       current: 'custom',
       status: 'loading',
@@ -152,9 +147,9 @@ describe('#addNetwork', () => {
   })
 
   it('adds a network with the correct default secondary connection settings', () => {
-    addNetwork(polygonNetwork)
+    addNetworkAction(polygonNetwork)
 
-    expect(networks.ethereum['137'].connection.secondary).toEqual({
+    expect(state.main.networks.ethereum['137'].connection.secondary).toEqual({
       on: false,
       current: 'custom',
       status: 'loading',
@@ -166,9 +161,9 @@ describe('#addNetwork', () => {
   })
 
   it('adds a network with the correct default gas settings', () => {
-    addNetwork(polygonNetwork)
+    addNetworkAction(polygonNetwork)
 
-    expect(networks.ethereum['137'].gas).toEqual({
+    expect(state.main.networks.ethereum['137'].gas).toEqual({
       price: {
         selected: 'standard',
         levels: { slow: '', standard: '', fast: '', asap: '', custom: '' }
@@ -177,9 +172,9 @@ describe('#addNetwork', () => {
   })
 
   it('adds a network with the correct default metadata', () => {
-    addNetwork(polygonNetwork)
+    addNetworkAction(polygonNetwork)
 
-    expect(networksMeta.ethereum['137']).toEqual({
+    expect(state.main.networksMeta.ethereum['137']).toEqual({
       blockHeight: 0,
       name: 'Polygon',
       icon: '',
@@ -199,51 +194,51 @@ describe('#addNetwork', () => {
   })
 
   it('does not add the network if id is not a parseable number', () => {
-    addNetwork({ ...polygonNetwork, id: 'test' })
+    addNetworkAction({ ...polygonNetwork, id: 'test' })
 
-    expect(Object.keys(networks.ethereum)).toHaveLength(0)
-    expect(Object.keys(networksMeta.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networks.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networksMeta.ethereum)).toHaveLength(0)
   })
 
   it('does not add the network if name is not defined', () => {
-    addNetwork({ ...polygonNetwork, name: undefined })
+    addNetworkAction({ ...polygonNetwork, name: undefined })
 
-    expect(Object.keys(networks.ethereum)).toHaveLength(0)
-    expect(Object.keys(networksMeta.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networks.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networksMeta.ethereum)).toHaveLength(0)
   })
 
   it('does not add the network if explorer is not defined', () => {
-    addNetwork({ ...polygonNetwork, explorer: undefined })
+    addNetworkAction({ ...polygonNetwork, explorer: undefined })
 
-    expect(Object.keys(networks.ethereum)).toHaveLength(0)
-    expect(Object.keys(networksMeta.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networks.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networksMeta.ethereum)).toHaveLength(0)
   })
 
   it('does not add the network if symbol is not defined', () => {
-    addNetwork({ ...polygonNetwork, symbol: undefined })
+    addNetworkAction({ ...polygonNetwork, symbol: undefined })
 
-    expect(Object.keys(networks.ethereum)).toHaveLength(0)
-    expect(Object.keys(networksMeta.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networks.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networksMeta.ethereum)).toHaveLength(0)
   })
 
   it('does not add the network if type is not a string', () => {
-    addNetwork({ ...polygonNetwork, type: 2 })
+    addNetworkAction({ ...polygonNetwork, type: 2 })
 
-    expect(Object.keys(networks.ethereum)).toHaveLength(0)
-    expect(Object.keys(networksMeta.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networks.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networksMeta.ethereum)).toHaveLength(0)
   })
 
   it('does not add the network if type is not "ethereum"', () => {
-    addNetwork({ ...polygonNetwork, type: 'solana' })
+    addNetworkAction({ ...polygonNetwork, type: 'solana' })
 
-    expect(Object.keys(networks.ethereum)).toHaveLength(0)
-    expect(Object.keys(networksMeta.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networks.ethereum)).toHaveLength(0)
+    expect(Object.keys(state.main.networksMeta.ethereum)).toHaveLength(0)
   })
 
   it('does not add the network if the networks already exists', () => {
-    networks.ethereum['137'] = { ...polygonNetwork }
+    state.main.networks.ethereum['137'] = { ...polygonNetwork }
 
-    addNetwork({
+    addNetworkAction({
       id: 137,
       type: 'ethereum',
       name: 'Matic v1',
@@ -251,25 +246,14 @@ describe('#addNetwork', () => {
       symbol: 'MATIC'
     })
 
-    expect(networks.ethereum['137'].name).toBe('Polygon')
-    expect(networks.ethereum['137'].explorer).toBe('https://polygonscan.com')
+    expect(state.main.networks.ethereum['137'].name).toBe('Polygon')
+    expect(state.main.networks.ethereum['137'].explorer).toBe('https://polygonscan.com')
   })
 })
 
 describe('#setBalances', () => {
-  const updaterFn = (node, address, update) => {
-    expect(node).toBe('main.balances')
-    expect(address).toBe(owner)
-
-    balances = update(balances)
-  }
-
-  const setBalances = (updatedBalances) => setBalancesAction(updaterFn, owner, updatedBalances)
-
-  let balances
-
   beforeEach(() => {
-    balances = [
+    state.main.balances[owner] = [
       {
         ...testTokens.badger,
         balance: addHexPrefix(new BigNumber(30.5).toString(16))
@@ -278,14 +262,14 @@ describe('#setBalances', () => {
   })
 
   it('adds a new balance', () => {
-    setBalances([
+    setBalancesAction(owner, [
       {
         ...testTokens.zrx,
         balance: addHexPrefix(new BigNumber(7983.2332).toString(16))
       }
     ])
 
-    expect(balances).toEqual([
+    expect(state.main.balances[owner]).toEqual([
       {
         ...testTokens.badger,
         balance: addHexPrefix(new BigNumber(30.5).toString(16))
@@ -298,14 +282,14 @@ describe('#setBalances', () => {
   })
 
   it('updates an existing balance to a positive amount', () => {
-    setBalances([
+    setBalancesAction(owner, [
       {
         ...testTokens.badger,
         balance: addHexPrefix(new BigNumber(41.9).toString(16))
       }
     ])
 
-    expect(balances).toEqual([
+    expect(state.main.balances[owner]).toEqual([
       {
         ...testTokens.badger,
         balance: addHexPrefix(new BigNumber(41.9).toString(16))
@@ -314,14 +298,14 @@ describe('#setBalances', () => {
   })
 
   it('updates an existing balance to zero', () => {
-    setBalances([
+    setBalancesAction(owner, [
       {
         ...testTokens.badger,
         balance: '0x0'
       }
     ])
 
-    expect(balances).toEqual([
+    expect(state.main.balances[owner]).toEqual([
       {
         ...testTokens.badger,
         balance: '0x0'
@@ -331,8 +315,8 @@ describe('#setBalances', () => {
 })
 
 describe('#removeBalance', () => {
-  let balances = {
-    [owner]: [
+  beforeEach(() => {
+    state.main.balances[owner] = [
       {
         ...testTokens.zrx,
         balance: addHexPrefix(BigNumber('798.564').toString(16))
@@ -341,8 +325,8 @@ describe('#removeBalance', () => {
         ...testTokens.badger,
         balance: addHexPrefix(BigNumber('15.543').toString(16))
       }
-    ],
-    '0xd0e3872f5fa8ecb49f1911f605c0da90689a484e': [
+    ]
+    state.main.balances['0xd0e3872f5fa8ecb49f1911f605c0da90689a484e'] = [
       {
         ...testTokens.zrx,
         balance: addHexPrefix(BigNumber('8201.343').toString(16))
@@ -352,81 +336,61 @@ describe('#removeBalance', () => {
         balance: addHexPrefix(BigNumber('101.988').toString(16))
       }
     ]
-  }
-
-  const updaterFn = (node, update) => {
-    expect(node).toBe('main.balances')
-
-    balances = update(balances)
-  }
-
-  const removeBalance = (key) => removeBalanceAction(updaterFn, 1, key)
+  })
 
   it('removes a balance from all accounts', () => {
-    removeBalance(testTokens.zrx.address)
+    removeBalanceAction(1, testTokens.zrx.address)
 
-    expect(balances[owner]).not.toContainEqual(expect.objectContaining({ address: testTokens.zrx.address }))
-    expect(balances[owner]).toHaveLength(1)
-    expect(balances['0xd0e3872f5fa8ecb49f1911f605c0da90689a484e']).not.toContainEqual(
+    expect(state.main.balances[owner]).not.toContainEqual(expect.objectContaining({ address: testTokens.zrx.address }))
+    expect(state.main.balances[owner]).toHaveLength(1)
+    expect(state.main.balances['0xd0e3872f5fa8ecb49f1911f605c0da90689a484e']).not.toContainEqual(
       expect.objectContaining({ address: testTokens.zrx.address })
     )
-    expect(balances['0xd0e3872f5fa8ecb49f1911f605c0da90689a484e']).toHaveLength(1)
+    expect(state.main.balances['0xd0e3872f5fa8ecb49f1911f605c0da90689a484e']).toHaveLength(1)
   })
 })
 
 describe('#addCustomTokens', () => {
-  let tokens = [],
-    balances = {}
-
-  const updaterFn = (node, update) => {
-    if (node === 'main.tokens.custom') {
-      tokens = update(tokens)
-    }
-
-    if (node === 'main.balances') {
-      balances = update(balances)
-    }
-  }
-
-  const addTokens = (tokensToAdd) => addCustomTokensAction(updaterFn, tokensToAdd)
+  beforeEach(() => {
+    state.main.tokens.custom = []
+    state.main.balances = {}
+  })
 
   it('adds a token', () => {
-    tokens = [testTokens.zrx]
+    state.main.tokens.custom = [testTokens.zrx]
 
-    addTokens([testTokens.badger])
+    addCustomTokensAction([testTokens.badger])
 
-    expect(tokens).toStrictEqual([testTokens.zrx, testTokens.badger])
+    expect(state.main.tokens.custom).toStrictEqual([testTokens.zrx, testTokens.badger])
   })
 
   it('overwrites a token', () => {
-    tokens = [testTokens.zrx, testTokens.badger]
+    state.main.tokens.custom = [testTokens.zrx, testTokens.badger]
 
     const updatedBadgerToken = {
       ...testTokens.badger,
       symbol: 'BAD'
     }
 
-    addTokens([updatedBadgerToken])
+    addCustomTokensAction([updatedBadgerToken])
 
-    expect(tokens).toHaveLength(2)
-    expect(tokens[0]).toEqual(testTokens.zrx)
-    expect(tokens[1].symbol).toBe('BAD')
+    expect(state.main.tokens.custom).toHaveLength(2)
+    expect(state.main.tokens.custom[0]).toEqual(testTokens.zrx)
+    expect(state.main.tokens.custom[1].symbol).toBe('BAD')
   })
 
   it('updates an existing balance for a custom token', () => {
     const account = '0xd0e3872f5fa8ecb49f1911f605c0da90689a484e'
 
-    balances = {
-      [account]: [
-        {
-          address: testTokens.badger.address,
-          chainId: testTokens.badger.chainId,
-          symbol: 'BDG',
-          name: 'Old Badger',
-          logoURI: 'http://logo.io'
-        }
-      ]
-    }
+    state.main.balances[account] = [
+      {
+        address: testTokens.badger.address,
+        chainId: testTokens.badger.chainId,
+        symbol: 'BDG',
+        name: 'Old Badger',
+        logoURI: 'http://logo.io'
+      }
+    ]
 
     const updatedBadgerToken = {
       ...testTokens.badger,
@@ -434,9 +398,9 @@ describe('#addCustomTokens', () => {
       name: 'Badger Token'
     }
 
-    addTokens([updatedBadgerToken])
+    addCustomTokensAction([updatedBadgerToken])
 
-    expect(balances[account]).toStrictEqual([
+    expect(state.main.balances[account]).toStrictEqual([
       {
         address: testTokens.badger.address,
         chainId: testTokens.badger.chainId,
@@ -449,31 +413,21 @@ describe('#addCustomTokens', () => {
 })
 
 describe('#removeCustomTokens', () => {
-  let customTokens = [],
-    knownTokens = {}
-
-  const updaterFn = (node, update) => {
-    if (node === 'main.tokens.custom') {
-      customTokens = update(customTokens)
-    } else if (node === 'main.tokens.known') {
-      knownTokens = update(knownTokens)
-    }
-  }
-
-  const removeTokens = (tokensToRemove) => removeTokensAction(updaterFn, tokensToRemove)
+  beforeEach(() => {
+    state.main.tokens.custom = []
+    state.main.tokens.known = {}
+  })
 
   it('removes a token', () => {
-    customTokens = [testTokens.zrx, testTokens.badger]
+    state.main.tokens.custom = [testTokens.zrx, testTokens.badger]
 
-    const tokenToRemove = { ...testTokens.zrx }
+    removeTokensAction([{ ...testTokens.zrx }])
 
-    removeTokens([tokenToRemove])
-
-    expect(customTokens).toStrictEqual([testTokens.badger])
+    expect(state.main.tokens.custom).toStrictEqual([testTokens.badger])
   })
 
   it('does not modify tokens if they cannot be found', () => {
-    customTokens = [testTokens.zrx, testTokens.badger]
+    state.main.tokens.custom = [testTokens.zrx, testTokens.badger]
 
     const tokenToRemove = {
       chainId: 1,
@@ -481,9 +435,9 @@ describe('#removeCustomTokens', () => {
       symbol: 'OHM'
     }
 
-    removeTokens([tokenToRemove])
+    removeTokensAction([tokenToRemove])
 
-    expect(customTokens).toStrictEqual([testTokens.zrx, testTokens.badger])
+    expect(state.main.tokens.custom).toStrictEqual([testTokens.zrx, testTokens.badger])
   })
 
   it('does not remove a token with the same address but different chain id', () => {
@@ -492,11 +446,11 @@ describe('#removeCustomTokens', () => {
       chainId: 1
     }
 
-    customTokens = [testTokens.zrx, testTokens.badger, tokenToRemove]
+    state.main.tokens.custom = [testTokens.zrx, testTokens.badger, tokenToRemove]
 
-    removeTokens([tokenToRemove])
+    removeTokensAction([tokenToRemove])
 
-    expect(customTokens).toStrictEqual([testTokens.zrx, testTokens.badger])
+    expect(state.main.tokens.custom).toStrictEqual([testTokens.zrx, testTokens.badger])
   })
 
   it('does not remove a token with the same chain id but different address', () => {
@@ -505,118 +459,89 @@ describe('#removeCustomTokens', () => {
       address: '0xa7a82dd06901f29ab14af63faf3358ad101724a8'
     }
 
-    customTokens = [testTokens.zrx, testTokens.badger, tokenToRemove]
+    state.main.tokens.custom = [testTokens.zrx, testTokens.badger, tokenToRemove]
 
-    removeTokens([tokenToRemove])
+    removeTokensAction([tokenToRemove])
 
-    expect(customTokens).toStrictEqual([testTokens.zrx, testTokens.badger])
+    expect(state.main.tokens.custom).toStrictEqual([testTokens.zrx, testTokens.badger])
   })
 
   it('removes the token from the list of known tokens for an address', () => {
     const address = '0xa7a82dd06901f29ab14af63faf3358ad101724a8'
 
-    knownTokens = {
-      [address]: [{ ...testTokens.zrx }]
-    }
+    state.main.tokens.known[address] = [{ ...testTokens.zrx }]
 
-    removeTokens([{ ...testTokens.zrx }])
+    removeTokensAction([{ ...testTokens.zrx }])
 
-    expect(knownTokens).toStrictEqual({ [address]: [] })
+    expect(state.main.tokens.known).toStrictEqual({ [address]: [] })
   })
 })
 
 describe('#addKnownTokens', () => {
-  let tokens = []
   const account = '0xfaff9f426e8071e03eebbfefe9e7bf4b37565ab9'
 
-  const updaterFn = (node, address, update) => {
-    expect(node).toBe('main.tokens.known')
-    expect(address).toBe(account)
-
-    tokens = update(tokens)
-  }
-
-  const addTokens = (tokensToAdd) => addKnownTokensAction(updaterFn, account, tokensToAdd)
+  beforeEach(() => {
+    state.main.tokens.known = {}
+  })
 
   it('adds a token', () => {
-    tokens = [testTokens.zrx]
+    state.main.tokens.known[account] = [testTokens.zrx]
 
-    addTokens([testTokens.badger])
+    addKnownTokensAction(account, [testTokens.badger])
 
-    expect(tokens).toStrictEqual([testTokens.zrx, testTokens.badger])
+    expect(state.main.tokens.known[account]).toStrictEqual([testTokens.zrx, testTokens.badger])
   })
 
   it('overwrites a token', () => {
-    tokens = [testTokens.zrx, testTokens.badger]
+    state.main.tokens.known[account] = [testTokens.zrx, testTokens.badger]
 
     const updatedBadgerToken = {
       ...testTokens.badger,
       symbol: 'BAD'
     }
 
-    addTokens([updatedBadgerToken])
+    addKnownTokensAction(account, [updatedBadgerToken])
 
-    expect(tokens).toHaveLength(2)
-    expect(tokens[0]).toEqual(testTokens.zrx)
-    expect(tokens[1].symbol).toBe('BAD')
+    expect(state.main.tokens.known[account]).toHaveLength(2)
+    expect(state.main.tokens.known[account][0]).toEqual(testTokens.zrx)
+    expect(state.main.tokens.known[account][1].symbol).toBe('BAD')
   })
 })
 
 describe('#setScanning', () => {
-  let isScanning
-
-  beforeAll(() => {
-    isScanning = false
-  })
-
-  const updaterFn = (node, address, update) => {
-    expect(node).toBe('main.scanning')
-    expect(address).toBe(owner)
-
-    isScanning = update()
-  }
-
-  const setScanning = (scanning) => setScanningAction(updaterFn, owner, scanning)
-
   it('immediately sets the state to scanning', () => {
-    setScanning(true)
+    setScanningAction(owner, true)
 
-    expect(isScanning).toBe(true)
+    expect(state.main.scanning[owner]).toBe(true)
   })
 
   it('sets the state back to not scanning after 1 second', () => {
-    setScanning(false)
+    setScanningAction(owner, true)
+    setScanningAction(owner, false)
 
-    expect(isScanning).toBe(true)
+    // still true immediately
+    expect(state.main.scanning[owner]).toBe(true)
 
     jest.advanceTimersByTime(1000)
 
-    expect(isScanning).toBe(false)
+    expect(state.main.scanning[owner]).toBe(false)
   })
 })
 
 describe('#initOrigin', () => {
-  let origins
   const creationDate = new Date('2022-05-24')
 
-  const updaterFn = (node, update) => {
-    expect(node).toBe('main.origins')
-    origins = update()
-  }
-
-  const initOrigin = (id, origin) => initOriginAction(updaterFn, id, origin)
-
   beforeEach(() => {
-    origins = {}
+    state.main.origins = {}
     jest.setSystemTime(creationDate)
   })
 
   it('creates a new origin', () => {
     const origin = { name: 'frame.test', chain: { id: 137, type: 'ethereum' } }
 
-    initOrigin('91f6971d-ba85-52d7-a27e-6af206eb2433', origin)
+    initOriginAction('91f6971d-ba85-52d7-a27e-6af206eb2433', origin)
 
-    expect(origins['91f6971d-ba85-52d7-a27e-6af206eb2433']).toEqual({
+    expect(state.main.origins['91f6971d-ba85-52d7-a27e-6af206eb2433']).toEqual({
       name: 'frame.test',
       chain: {
         id: 137,
@@ -632,17 +557,8 @@ describe('#initOrigin', () => {
 })
 
 describe('#clearOrigins', () => {
-  let origins
-
-  const updaterFn = (node, update) => {
-    expect(node).toBe('main.origins')
-    origins = update()
-  }
-
-  const clearOrigins = () => clearOriginsAction(updaterFn)
-
   beforeEach(() => {
-    origins = {
+    state.main.origins = {
       '91f6971d-ba85-52d7-a27e-6af206eb2433': {},
       '8073729a-5e59-53b7-9e69-5d9bcff94087': {},
       'd7acc008-6411-5486-bb2d-0c0cfcddbb92': {}
@@ -650,23 +566,15 @@ describe('#clearOrigins', () => {
   })
 
   it('should clear all existing origins', () => {
-    clearOrigins(origins)
+    clearOriginsAction()
 
-    expect(origins).toEqual({})
+    expect(state.main.origins).toEqual({})
   })
 })
 
 describe('#removeOrigin', () => {
-  let origins
-
-  const updaterFn = (node, update) => {
-    if (node === 'main.origins') origins = update(origins)
-  }
-
-  const removeOrigin = (originId) => removeOriginAction(updaterFn, originId)
-
   beforeEach(() => {
-    origins = {
+    state.main.origins = {
       '91f6971d-ba85-52d7-a27e-6af206eb2433': {},
       '8073729a-5e59-53b7-9e69-5d9bcff94087': {},
       'd7acc008-6411-5486-bb2d-0c0cfcddbb92': {}
@@ -674,9 +582,9 @@ describe('#removeOrigin', () => {
   })
 
   it('should remove the specified origin', () => {
-    removeOrigin('8073729a-5e59-53b7-9e69-5d9bcff94087')
+    removeOriginAction('8073729a-5e59-53b7-9e69-5d9bcff94087')
 
-    expect(origins).toEqual({
+    expect(state.main.origins).toEqual({
       '91f6971d-ba85-52d7-a27e-6af206eb2433': {},
       'd7acc008-6411-5486-bb2d-0c0cfcddbb92': {}
     })
@@ -684,23 +592,14 @@ describe('#removeOrigin', () => {
 })
 
 describe('#addOriginRequest', () => {
-  let origins
-
   const creationTime = new Date('2022-05-24').getTime()
   const updateTime = creationTime + 1000 * 60 * 60 * 24 * 2 // 2 days
   const endTime = creationTime + 1000 * 60 * 60 * 24 * 1 // 1 day
 
-  const updaterFn = (node, id, update) => {
-    expect(node).toBe('main.origins')
-    origins[id] = update(origins[id])
-  }
-
-  const addOriginRequest = (id) => addOriginRequestAction(updaterFn, id)
-
   beforeEach(() => {
     jest.setSystemTime(updateTime)
 
-    origins = {
+    state.main.origins = {
       activeOrigin: {
         chain: { id: 10, type: 'ethereum' },
         session: {
@@ -722,124 +621,103 @@ describe('#addOriginRequest', () => {
   })
 
   it('updates the timestamp for an existing session', () => {
-    addOriginRequest('activeOrigin')
+    addOriginRequestAction('activeOrigin')
 
-    expect(origins.activeOrigin.session.startedAt).toBe(creationTime)
-    expect(origins.activeOrigin.session.lastUpdatedAt).toBe(updateTime)
+    expect(state.main.origins.activeOrigin.session.startedAt).toBe(creationTime)
+    expect(state.main.origins.activeOrigin.session.lastUpdatedAt).toBe(updateTime)
   })
 
   it('increments the request count for an existing session', () => {
-    origins.activeOrigin.session.requests = 3
+    state.main.origins.activeOrigin.session.requests = 3
 
-    addOriginRequest('activeOrigin')
+    addOriginRequestAction('activeOrigin')
 
-    expect(origins.activeOrigin.session.requests).toBe(4)
+    expect(state.main.origins.activeOrigin.session.requests).toBe(4)
   })
 
   it('handles a request for a previously ended session', () => {
-    addOriginRequest('staleOrigin')
+    addOriginRequestAction('staleOrigin')
 
-    expect(origins.staleOrigin.session.startedAt).toBe(updateTime)
-    expect(origins.staleOrigin.session.endedAt).toBe(undefined)
-    expect(origins.staleOrigin.session.lastUpdatedAt).toBe(updateTime)
+    expect(state.main.origins.staleOrigin.session.startedAt).toBe(updateTime)
+    expect(state.main.origins.staleOrigin.session.endedAt).toBe(undefined)
+    expect(state.main.origins.staleOrigin.session.lastUpdatedAt).toBe(updateTime)
   })
 
   it('resets the request count when starting a new session', () => {
-    addOriginRequest('staleOrigin')
+    addOriginRequestAction('staleOrigin')
 
-    expect(origins.staleOrigin.session.requests).toBe(1)
+    expect(state.main.origins.staleOrigin.session.requests).toBe(1)
   })
 })
 
 describe('#switchOriginChain', () => {
-  let origins = {}
-
-  const updaterFn = (node, origin, update) => {
-    const nodePath = [node, origin].join('.')
-    expect(nodePath).toBe('main.origins.91f6971d-ba85-52d7-a27e-6af206eb2433')
-
-    origins[origin] = update()
-  }
-
   beforeEach(() => {
-    origins = {
+    state.main.origins = {
       '91f6971d-ba85-52d7-a27e-6af206eb2433': {
         chain: { id: 1, type: 'ethereum' }
       }
     }
   })
 
-  const switchChain = (chainId, type) =>
-    switchOriginChainAction(updaterFn, '91f6971d-ba85-52d7-a27e-6af206eb2433', chainId, type)
-
   it('should switch the chain for an origin', () => {
-    switchChain(50, 'ethereum')
+    switchOriginChainAction('91f6971d-ba85-52d7-a27e-6af206eb2433', 50, 'ethereum')
 
-    expect(origins['91f6971d-ba85-52d7-a27e-6af206eb2433'].chain).toStrictEqual({ id: 50, type: 'ethereum' })
+    expect(state.main.origins['91f6971d-ba85-52d7-a27e-6af206eb2433'].chain).toStrictEqual({
+      id: 50,
+      type: 'ethereum'
+    })
   })
 })
 
 describe('#removeNetwork', () => {
-  let main
-
-  const updaterFn = (node, update) => {
-    expect(node).toBe('main')
-    main = update(main)
-  }
-
   beforeEach(() => {
-    main = {
-      origins: {
-        '91f6971d-ba85-52d7-a27e-6af206eb2433': {
-          chain: { id: 1, type: 'ethereum' }
-        },
-        '8073729a-5e59-53b7-9e69-5d9bcff94087': {
-          chain: { id: 4, type: 'ethereum' }
-        },
-        'd7acc008-6411-5486-bb2d-0c0cfcddbb92': {
-          chain: { id: 50, type: 'cosmos' }
-        },
-        '695112ec-43e2-52a8-8f69-5c36837d6d13': {
-          chain: { id: 4, type: 'ethereum' }
-        }
+    state.main.origins = {
+      '91f6971d-ba85-52d7-a27e-6af206eb2433': {
+        chain: { id: 1, type: 'ethereum' }
       },
-      networks: {
-        ethereum: {
-          1: {},
-          4: {},
-          137: {}
-        },
-        cosmos: {
-          50: {}
-        }
+      '8073729a-5e59-53b7-9e69-5d9bcff94087': {
+        chain: { id: 4, type: 'ethereum' }
       },
-      networksMeta: {
-        ethereum: {
-          1: {},
-          4: {},
-          137: {}
-        },
-        cosmos: {
-          50: {}
-        }
+      'd7acc008-6411-5486-bb2d-0c0cfcddbb92': {
+        chain: { id: 50, type: 'cosmos' }
+      },
+      '695112ec-43e2-52a8-8f69-5c36837d6d13': {
+        chain: { id: 4, type: 'ethereum' }
+      }
+    }
+    state.main.networks = {
+      ethereum: {
+        1: {},
+        4: {},
+        137: {}
+      },
+      cosmos: {
+        50: {}
+      }
+    }
+    state.main.networksMeta = {
+      ethereum: {
+        1: {},
+        4: {},
+        137: {}
+      },
+      cosmos: {
+        50: {}
       }
     }
   })
 
-  const removeNetwork = (networkId, networkType = 'ethereum') =>
-    removeNetworkAction(updaterFn, { id: networkId, type: networkType })
-
   it('should delete the network and meta', () => {
-    removeNetwork(4)
+    removeNetworkAction({ id: 4, type: 'ethereum' })
 
-    expect(main.networks.ethereum).toStrictEqual({ 1: {}, 137: {} })
-    expect(main.networksMeta.ethereum).toStrictEqual({ 1: {}, 137: {} })
+    expect(state.main.networks.ethereum).toStrictEqual({ 1: {}, 137: {} })
+    expect(state.main.networksMeta.ethereum).toStrictEqual({ 1: {}, 137: {} })
   })
 
   it('should switch the chain for origins using the deleted network to mainnet', () => {
-    removeNetwork(4)
+    removeNetworkAction({ id: 4, type: 'ethereum' })
 
-    expect(main.origins).toStrictEqual({
+    expect(state.main.origins).toStrictEqual({
       '91f6971d-ba85-52d7-a27e-6af206eb2433': {
         chain: { id: 1, type: 'ethereum' }
       },
@@ -857,16 +735,16 @@ describe('#removeNetwork', () => {
 
   describe('when passed the last network of a given type', () => {
     it('should not delete the last network of a given type', () => {
-      removeNetwork(50, 'cosmos')
+      removeNetworkAction({ id: 50, type: 'cosmos' })
 
-      expect(main.networks.cosmos[50]).toStrictEqual({})
-      expect(main.networksMeta.cosmos[50]).toStrictEqual({})
+      expect(state.main.networks.cosmos[50]).toStrictEqual({})
+      expect(state.main.networksMeta.cosmos[50]).toStrictEqual({})
     })
 
     it('should not update its origins', () => {
-      removeNetwork(50, 'cosmos')
+      removeNetworkAction({ id: 50, type: 'cosmos' })
 
-      expect(main.origins).toStrictEqual({
+      expect(state.main.origins).toStrictEqual({
         '91f6971d-ba85-52d7-a27e-6af206eb2433': {
           chain: { id: 1, type: 'ethereum' }
         },
@@ -885,62 +763,50 @@ describe('#removeNetwork', () => {
 })
 
 describe('#updateNetwork', () => {
-  let main
-
-  const updaterFn = (node, update) => {
-    expect(node).toBe('main')
-    main = update(main)
-  }
-
   beforeEach(() => {
-    main = {
-      origins: {
-        '91f6971d-ba85-52d7-a27e-6af206eb2433': {
-          chain: { id: 1, type: 'ethereum' }
-        },
-        '8073729a-5e59-53b7-9e69-5d9bcff94087': {
-          chain: { id: 4, type: 'ethereum' }
-        },
-        'd7acc008-6411-5486-bb2d-0c0cfcddbb92': {
-          chain: { id: 50, type: 'ethereum' }
-        },
-        '695112ec-43e2-52a8-8f69-5c36837d6d13': {
-          chain: { id: 4, type: 'ethereum' }
-        }
+    state.main.origins = {
+      '91f6971d-ba85-52d7-a27e-6af206eb2433': {
+        chain: { id: 1, type: 'ethereum' }
       },
-      networks: {
-        ethereum: {
-          1: {},
-          4: {},
-          137: {}
-        },
-        cosmos: {
-          50: {}
-        }
+      '8073729a-5e59-53b7-9e69-5d9bcff94087': {
+        chain: { id: 4, type: 'ethereum' }
       },
-      networksMeta: {
-        ethereum: {
-          1: {},
-          4: {},
-          137: {}
-        },
-        cosmos: {
-          50: {}
-        }
+      'd7acc008-6411-5486-bb2d-0c0cfcddbb92': {
+        chain: { id: 50, type: 'ethereum' }
+      },
+      '695112ec-43e2-52a8-8f69-5c36837d6d13': {
+        chain: { id: 4, type: 'ethereum' }
+      }
+    }
+    state.main.networks = {
+      ethereum: {
+        1: {},
+        4: {},
+        137: {}
+      },
+      cosmos: {
+        50: {}
+      }
+    }
+    state.main.networksMeta = {
+      ethereum: {
+        1: {},
+        4: {},
+        137: {}
+      },
+      cosmos: {
+        50: {}
       }
     }
   })
 
-  const updateNetwork = (existingNetwork, newNetwork) =>
-    updateNetworkAction(updaterFn, existingNetwork, newNetwork)
-
   it('should update the network', () => {
-    updateNetwork(
+    updateNetworkAction(
       { id: '0x4', type: 'ethereum', name: '', explorer: '', symbol: '' },
       { id: '0x42', type: 'ethereum', name: 'test', explorer: 'explorer.test', symbol: 'TEST' }
     )
 
-    expect(main.networks.ethereum).toStrictEqual({
+    expect(state.main.networks.ethereum).toStrictEqual({
       1: {},
       66: { id: 66, type: 'ethereum', name: 'test', explorer: 'explorer.test', symbol: 'TEST' },
       137: {}
@@ -948,12 +814,12 @@ describe('#updateNetwork', () => {
   })
 
   it('should trim string properties', () => {
-    updateNetwork(
+    updateNetworkAction(
       { id: '0x4', type: 'ethereum', name: '', explorer: '', symbol: '' },
       { id: '0x42', type: 'ethereum', name: 'test     ', explorer: '   explorer.test    ', symbol: 'TEST  ' }
     )
 
-    expect(main.networks.ethereum).toStrictEqual({
+    expect(state.main.networks.ethereum).toStrictEqual({
       1: {},
       66: { id: 66, type: 'ethereum', name: 'test', explorer: 'explorer.test', symbol: 'TEST' },
       137: {}
@@ -961,12 +827,12 @@ describe('#updateNetwork', () => {
   })
 
   it('should update the chainId for origins using the updated network', () => {
-    updateNetwork(
+    updateNetworkAction(
       { id: '0x4', type: 'ethereum', name: '', explorer: '', symbol: '' },
       { id: '0x42', type: 'ethereum', name: 'test', explorer: 'explorer.test', symbol: 'TEST' }
     )
 
-    expect(main.origins).toStrictEqual({
+    expect(state.main.origins).toStrictEqual({
       '91f6971d-ba85-52d7-a27e-6af206eb2433': {
         chain: expect.objectContaining({ id: 1, type: 'ethereum' })
       },
@@ -987,7 +853,7 @@ describe('#updateNetwork', () => {
     const nativeCurrencyIcon = 'http://icon2.com'
     const nativeCurrencyName = 'TEST_NAME'
     const symbol = 'TEST'
-    updateNetwork(
+    updateNetworkAction(
       { id: '0x4', type: 'ethereum', name: '', explorer: '', symbol: '' },
       {
         id: '0x4',
@@ -1001,7 +867,7 @@ describe('#updateNetwork', () => {
       }
     )
 
-    expect(main.networksMeta.ethereum[4]).toStrictEqual({
+    expect(state.main.networksMeta.ethereum[4]).toStrictEqual({
       icon,
       nativeCurrency: { symbol, name: nativeCurrencyName, icon: nativeCurrencyIcon },
       symbol
@@ -1010,86 +876,61 @@ describe('#updateNetwork', () => {
 })
 
 describe('#activateNetwork', () => {
-  let main = {
-    networks: {
+  beforeEach(() => {
+    state.main.networks = {
       ethereum: {
         137: {
           on: false
         }
       }
-    },
-    origins: {
+    }
+    state.main.origins = {
       'frame.test': {
         chain: {
           id: 137
         }
       }
     }
-  }
-
-  const updaterFn = (node, ...args) => {
-    if (node === 'main') {
-      const update = args[0]
-      update(main)
-    }
-
-    if (node === 'main.networks') {
-      const [type, chainId, on, update] = args
-      main.networks[type][chainId][on] = update()
-    }
-  }
-
-  const activateNetwork = (type, chainId, active) => activateNetworkAction(updaterFn, type, chainId, active)
+  })
 
   it('activates the given chain', () => {
-    main.networks.ethereum[137].on = false
+    state.main.networks.ethereum[137].on = false
 
-    activateNetwork('ethereum', 137, true)
+    activateNetworkAction('ethereum', 137, true)
 
-    expect(main.networks.ethereum[137].on).toBe(true)
+    expect(state.main.networks.ethereum[137].on).toBe(true)
   })
 
   it('switches the chain for origins from the deactivated chain to mainnet', () => {
-    main.origins['frame.test'].chain.id = 137
+    state.main.origins['frame.test'].chain.id = 137
 
-    activateNetwork('ethereum', 137, false)
+    activateNetworkAction('ethereum', 137, false)
 
-    expect(main.origins['frame.test'].chain.id).toBe(1)
+    expect(state.main.origins['frame.test'].chain.id).toBe(1)
   })
 })
 
 describe('#setBlockHeight', () => {
-  let main
-
-  const updaterFn = (node, update) => {
-    expect(node).toBe('main.networksMeta.ethereum')
-    main.networksMeta.ethereum = update(main.networksMeta.ethereum)
-  }
-
   beforeEach(() => {
-    main = {
-      networksMeta: {
-        ethereum: {
-          1: {
-            blockHeight: 0
-          },
-          4: {
-            blockHeight: 0
-          },
-          137: {
-            blockHeight: 0
-          }
+    state.main.networksMeta = {
+      ethereum: {
+        1: {
+          blockHeight: 0
+        },
+        4: {
+          blockHeight: 0
+        },
+        137: {
+          blockHeight: 0
         }
       }
     }
   })
 
-  const setBlockHeight = (chainId, blockHeight) => setBlockHeightAction(updaterFn, chainId, blockHeight)
-
   it('should update the block height for the expected chain', () => {
-    setBlockHeight(4, 500)
+    setBlockHeightAction(4, 500)
 
-    expect(main.networksMeta.ethereum).toStrictEqual({
+    expect(state.main.networksMeta.ethereum).toStrictEqual({
       1: { blockHeight: 0 },
       4: { blockHeight: 500 },
       137: { blockHeight: 0 }
@@ -1098,114 +939,87 @@ describe('#setBlockHeight', () => {
 })
 
 describe('#updateAccount', () => {
-  let main
-
-  const updaterFn = (node, id, update) => {
-    if (node === 'main.accounts') {
-      main.accounts[id] = update(main.accounts[id])
-    }
-
-    if (node === 'main.accountsMeta') {
-      main.accountsMeta[id] = update(main.accountsMeta[id])
-    }
-  }
-
   beforeEach(() => {
     jest.setSystemTime(new Date('2022-11-17T11:01:58.135Z'))
 
-    main = {
-      accounts: {
-        1: {
-          id: '1',
-          name: 'cool account',
-          lastSignerType: 'ledger',
-          balances: {}
-        }
-      },
-      accountsMeta: {
-        'e42ee170-4601-5428-bac5-d8d92fe049e8': {
-          name: 'cool account',
-          lastUpdated: 1568682918135
-        }
+    state.main.accounts = {
+      1: {
+        id: '1',
+        name: 'cool account',
+        lastSignerType: 'ledger',
+        balances: {}
+      }
+    }
+    state.main.accountsMeta = {
+      'e42ee170-4601-5428-bac5-d8d92fe049e8': {
+        name: 'cool account',
+        lastUpdated: 1568682918135
       }
     }
   })
 
-  const setAccount = (id, updatedAccount) => updateAccountAction(updaterFn, { ...updatedAccount, id })
-
   it('should update the account', () => {
-    setAccount('1', { name: 'cool account', lastSignerType: 'seed', status: 'ok' })
+    updateAccountAction({ id: '1', name: 'cool account', lastSignerType: 'seed', status: 'ok' })
 
-    expect(main.accounts).toStrictEqual({
+    expect(state.main.accounts).toStrictEqual({
       1: { id: '1', name: 'cool account', lastSignerType: 'seed', status: 'ok', balances: {} }
     })
   })
 
   it('should not update account balances', () => {
-    setAccount('1', { name: 'cool account', lastSignerType: 'seed', status: 'ok', balances: 'ignored' })
+    updateAccountAction({ id: '1', name: 'cool account', lastSignerType: 'seed', status: 'ok', balances: 'ignored' })
 
-    expect(main.accounts).toStrictEqual({
+    expect(state.main.accounts).toStrictEqual({
       1: { id: '1', name: 'cool account', lastSignerType: 'seed', status: 'ok', balances: {} }
     })
   })
 
   it('should create a new account', () => {
-    setAccount('2', { name: 'new cool account', lastSignerType: 'seed', status: 'ok' })
+    updateAccountAction({ id: '2', name: 'new cool account', lastSignerType: 'seed', status: 'ok' })
 
-    expect(main.accounts).toStrictEqual({
+    expect(state.main.accounts).toStrictEqual({
       1: { id: '1', name: 'cool account', lastSignerType: 'ledger', balances: {} },
       2: { id: '2', name: 'new cool account', lastSignerType: 'seed', status: 'ok', balances: {} }
     })
   })
 
   it('should update existing accountMeta with the expected data', () => {
-    setAccount('1', { name: 'not so cool account', lastSignerType: 'seed', status: 'ok' })
+    updateAccountAction({ id: '1', name: 'not so cool account', lastSignerType: 'seed', status: 'ok' })
 
-    expect(main.accountsMeta).toStrictEqual({
+    expect(state.main.accountsMeta).toStrictEqual({
       'e42ee170-4601-5428-bac5-d8d92fe049e8': { name: 'not so cool account', lastUpdated: 1668682918135 }
     })
   })
 
   it('should create new accountMeta with the expected data', () => {
-    setAccount('2', { name: 'not so cool account', lastSignerType: 'seed', status: 'ok' })
+    updateAccountAction({ id: '2', name: 'not so cool account', lastSignerType: 'seed', status: 'ok' })
 
-    expect(main.accountsMeta).toStrictEqual({
+    expect(state.main.accountsMeta).toStrictEqual({
       'e42ee170-4601-5428-bac5-d8d92fe049e8': { name: 'cool account', lastUpdated: 1568682918135 },
       '0d6c930e-3495-56cc-993f-8da3a6150003': { name: 'not so cool account', lastUpdated: 1668682918135 }
     })
   })
 
   it(`should not create a new value for a default label`, () => {
-    setAccount('2', { name: 'hot account', lastSignerType: 'seed', status: 'ok' })
+    updateAccountAction({ id: '2', name: 'hot account', lastSignerType: 'seed', status: 'ok' })
 
-    expect(main.accountsMeta).toStrictEqual({
+    expect(state.main.accountsMeta).toStrictEqual({
       'e42ee170-4601-5428-bac5-d8d92fe049e8': { name: 'cool account', lastUpdated: 1568682918135 }
     })
   })
 
   it(`should not update an existing value with a default label`, () => {
-    setAccount('1', { name: 'hot account', lastSignerType: 'seed', status: 'ok' })
+    updateAccountAction({ id: '1', name: 'hot account', lastSignerType: 'seed', status: 'ok' })
 
-    expect(main.accountsMeta).toStrictEqual({
+    expect(state.main.accountsMeta).toStrictEqual({
       'e42ee170-4601-5428-bac5-d8d92fe049e8': { name: 'cool account', lastUpdated: 1568682918135 }
     })
   })
 })
 
 describe('#removeBalances', () => {
-  let balances
-
-  const updaterFn = (node, address, update) => {
-    expect(node).toBe('main.balances')
-    expect(address).toBe(owner)
-
-    balances = update(balances)
-  }
-
-  const removeBalances = (setToRemove) => removeBalancesAction(updaterFn, owner, setToRemove)
-
   beforeEach(() => {
-    balances = Object.values(testTokens).map((token) => ({
+    state.main.balances[owner] = Object.values(testTokens).map((token) => ({
       ...token,
       balance: addHexPrefix(new BigNumber(120).toString(16))
     }))
@@ -1213,64 +1027,43 @@ describe('#removeBalances', () => {
 
   it('should remove all tokens from the removal set from an accounts balance', () => {
     const removalSet = new Set(Object.values(testTokens).map(toTokenId))
-    removeBalances(removalSet)
-    expect(balances.length).toBe(0)
+    removeBalancesAction(owner, removalSet)
+    expect(state.main.balances[owner].length).toBe(0)
   })
 
   it('should only remove tokens from the removal set from an accounts balance', () => {
     const removalSet = new Set()
     removalSet.add(toTokenId(testTokens.badger))
-    removeBalances(removalSet)
-    expect(balances.length).toBe(1)
+    removeBalancesAction(owner, removalSet)
+    expect(state.main.balances[owner].length).toBe(1)
   })
 })
 
 describe('#removeKnownTokens', () => {
-  let knownTokens
-
-  const updaterFn = (node, address, update) => {
-    expect(node).toBe('main.tokens.known')
-    expect(address).toBe(owner)
-
-    knownTokens = update(knownTokens)
-  }
-
-  const removeKnownTokens = (setToRemove) => removeKnownTokensAction(updaterFn, owner, setToRemove)
-
   beforeEach(() => {
-    knownTokens = Object.values(testTokens)
+    state.main.tokens.known[owner] = Object.values(testTokens)
   })
 
   it('should remove all tokens from the removal set from an accounts known tokens', () => {
     const removalSet = new Set(Object.values(testTokens).map(toTokenId))
-    removeKnownTokens(removalSet)
-    expect(knownTokens.length).toBe(0)
+    removeKnownTokensAction(owner, removalSet)
+    expect(state.main.tokens.known[owner].length).toBe(0)
   })
 
   it('should only remove tokens from the removal set from an accounts known tokens', () => {
     const removalSet = new Set([toTokenId(testTokens.badger)])
-    removeKnownTokens(removalSet)
-    expect(knownTokens.length).toBe(1)
+    removeKnownTokensAction(owner, removalSet)
+    expect(state.main.tokens.known[owner].length).toBe(1)
   })
 })
 
 describe('#navClearSigner', () => {
-  let nav
-
-  const updaterFn = (node, update) => {
-    expect(node).toBe('windows.dash.nav')
-
-    nav = update(nav)
-  }
-
-  const clearSigner = clearNavSignerAction.bind(null, updaterFn)
-
   beforeEach(() => {
-    nav = []
+    state.windows = { dash: { show: false, nav: [], footer: { height: 40 } }, panel: { show: false, nav: [], footer: { height: 40 } } }
   })
 
   it('should remove a specific signer from the nav', () => {
-    nav = [
+    state.windows.dash.nav = [
       {
         view: 'expandedSigner',
         data: {
@@ -1285,31 +1078,21 @@ describe('#navClearSigner', () => {
       }
     ]
 
-    const [req1, _req2] = nav
+    const [req1, _req2] = state.windows.dash.nav
 
-    clearSigner('2b')
+    clearNavSignerAction('2b')
 
-    expect(nav).toStrictEqual([req1])
+    expect(state.windows.dash.nav).toStrictEqual([req1])
   })
 })
 
 describe('#navClearReq', () => {
-  let nav
-
-  const updaterFn = (node, update) => {
-    expect(node).toBe('windows.panel.nav')
-
-    nav = update(nav)
-  }
-
-  const clearRequest = clearNavRequestAction.bind(null, updaterFn)
-
   beforeEach(() => {
-    nav = []
+    state.windows = { dash: { show: false, nav: [], footer: { height: 40 } }, panel: { show: false, nav: [], footer: { height: 40 } } }
   })
 
   it('should remove a specific request from the nav', () => {
-    nav = [
+    state.windows.panel.nav = [
       {
         view: 'requestView',
         data: {
@@ -1330,15 +1113,15 @@ describe('#navClearReq', () => {
       }
     ]
 
-    const [req1, , inbox] = nav
+    const [req1, , inbox] = state.windows.panel.nav
 
-    clearRequest('2b')
+    clearNavRequestAction('2b')
 
-    expect(nav).toStrictEqual([req1, inbox])
+    expect(state.windows.panel.nav).toStrictEqual([req1, inbox])
   })
 
   it('should remove the request inbox when not requested', () => {
-    nav = [
+    state.windows.panel.nav = [
       {
         view: 'requestView',
         data: {
@@ -1353,57 +1136,48 @@ describe('#navClearReq', () => {
       }
     ]
 
-    clearRequest('1c', false)
+    clearNavRequestAction('1c', false)
 
-    expect(nav).toStrictEqual([])
+    expect(state.windows.panel.nav).toStrictEqual([])
   })
 })
 
 describe('#updateTypedDataRequest', () => {
-  let requests
   const request = '79928538-c971-4cf0-8498-fa4e8017398b'
 
-  const updaterFn = (node, account, leaf, update) => {
-    expect(node).toBe('main.accounts')
-    expect(account).toBe(owner)
-    expect(leaf).toBe('requests')
-
-    requests = update(requests)
-  }
-
-  const updateSignatureMessage = (reqId, newData) => updateTypedDataAction(updaterFn, owner, reqId, newData)
-
   beforeEach(() => {
-    requests = {
-      [request]: {
-        handlerId: '79928538-c971-4cf0-8498-fa4e8017398b',
-        type: 'signTypedData',
-        typedMessage: {
-          data: {
-            oldAttribute: true
+    state.main.accounts[owner] = {
+      requests: {
+        [request]: {
+          handlerId: '79928538-c971-4cf0-8498-fa4e8017398b',
+          type: 'signTypedData',
+          typedMessage: {
+            data: {
+              oldAttribute: true
+            }
           }
+        },
+        some_other_id: {
+          handlerId: 'wow_such_valid_handerId'
         }
-      },
-      some_other_id: {
-        handlerId: 'wow_such_valid_handerId'
       }
     }
   })
 
   it('should add a new property to a request ', () => {
-    expect(requests[request].doesNotExistYet).toBeUndefined()
-    updateSignatureMessage(request, {
+    expect(state.main.accounts[owner].requests[request].doesNotExistYet).toBeUndefined()
+    updateTypedDataAction(owner, request, {
       doesNotExistYet: true
     })
 
-    expect(requests[request].doesNotExistYet).toBeTruthy()
+    expect(state.main.accounts[owner].requests[request].doesNotExistYet).toBeTruthy()
   })
 
   it('should not change any properties which are not altered in an update', () => {
-    updateSignatureMessage(request, {
+    updateTypedDataAction(owner, request, {
       doesNotExistYet: true
     })
 
-    expect(requests[request].typedMessage.data.oldAttribute).toBeTruthy()
+    expect(state.main.accounts[owner].requests[request].typedMessage.data.oldAttribute).toBeTruthy()
   })
 })

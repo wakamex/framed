@@ -8,8 +8,9 @@ import {
 } from 'electron'
 import path from 'path'
 import log from 'electron-log'
+import { subscribe, snapshot } from 'valtio'
 
-import store from '../store'
+import state from '../store'
 import { createWindow } from './window'
 import { SystemTray, SystemTrayEventHandlers } from './systemTray'
 import { registerShortcut } from '../keyboardShortcuts'
@@ -110,8 +111,8 @@ const init = () => {
   })
 
   // Observe summon shortcut changes
-  store.observer(() => {
-    const summonShortcut: Shortcut = store('main.shortcuts.summon')
+  subscribe(state, () => {
+    const summonShortcut: Shortcut = state.main.shortcuts.summon as Shortcut
     const summonHandler = () => {
       if (mainWindow) {
         if (mainWindow.isVisible()) {
@@ -134,9 +135,12 @@ const send = (channel: string, ...args: string[]) => {
   }
 }
 
-// Sync state changes to renderer
-store.api.feed((_state, actions) => {
-  send('main:action', 'stateSync', JSON.stringify(actions))
+// Sync state changes to renderer (only main state)
+subscribe(state, (ops: any[]) => {
+  const mainOps = ops.filter(([_op, path]: any) => path[0] === 'main')
+  if (mainOps.length === 0) return
+  const updates = mainOps.map(([_op, path, value]: any) => ({ path: path.join('.'), value }))
+  send('main:action', 'stateSync', JSON.stringify([{ updates }]))
 })
 
 export default {

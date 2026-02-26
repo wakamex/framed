@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react'
+import { useSnapshot } from 'valtio'
 import {
+  state,
+  setSelectedAccount,
   useSelectedAccount,
   useSigners,
   useBalances,
   usePermissions,
   useOrigins,
-  useNetworksMeta,
-  useStore
+  useNetworksMeta
 } from '../../store'
 import { actions } from '../../ipc'
 import { createBalance, sortByTotalValue } from '../../../resources/domain/balance'
@@ -21,7 +23,8 @@ export default function AccountDetail() {
   const account = useSelectedAccount()
   const signers = useSigners()
   const networksMeta = useNetworksMeta()
-  const selectedId = useStore((s) => s.selectedAccount)
+  const snap = useSnapshot(state)
+  const selectedId = snap.selectedAccount
   const balances = useBalances(selectedId ?? '')
   const permissions = usePermissions(selectedId ?? '')
   const origins = useOrigins()
@@ -70,7 +73,7 @@ export default function AccountDetail() {
 
   const handleRemove = () => {
     actions.removeAccount(account.id)
-    useStore.getState().setSelectedAccount(null)
+    setSelectedAccount(null)
     setConfirmRemove(false)
   }
 

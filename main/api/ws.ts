@@ -4,7 +4,7 @@ import { v4 as uuid } from 'uuid'
 import log from 'electron-log'
 import { isHexString } from '@ethereumjs/util'
 
-import store from '../store'
+import { endOriginSession } from '../store/actions'
 import provider from '../provider'
 import accounts from '../accounts'
 import windows from '../windows'
@@ -47,7 +47,7 @@ function extendSession(originId: string) {
     clearTimeout(connectionMonitors[originId])
 
     connectionMonitors[originId] = setTimeout(() => {
-      store.endOriginSession(originId)
+      endOriginSession(originId)
     }, 60 * 1000)
   }
 }

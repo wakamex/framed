@@ -6,6 +6,8 @@ import type { AssetId } from '@framelabs/pylon-client/dist/assetId'
 import type { UsdRate } from '../../provider/assets'
 import type { NativeCurrency, Rate, Token } from '../../store/state'
 
+import { setNativeCurrencyData, setRates } from '../../store/actions'
+
 interface RateUpdate {
   id: AssetId
   data: {
@@ -14,16 +16,16 @@ interface RateUpdate {
   }
 }
 
-export default function rates(pylon: Pylon, store: Store) {
+export default function rates(pylon: Pylon, state: any) {
   const storeApi = {
     getKnownTokens: (address?: Address) =>
-      ((address && store('main.tokens.known', address)) || []) as Token[],
-    getCustomTokens: () => (store('main.tokens.custom') || []) as Token[],
+      ((address && (state.main.tokens.known as any)?.[address]) || []) as Token[],
+    getCustomTokens: () => (state.main.tokens.custom || []) as Token[],
     setNativeCurrencyData: (chainId: number, currencyData: NativeCurrency) =>
-      store.setNativeCurrencyData('ethereum', chainId, currencyData),
+      setNativeCurrencyData('ethereum', chainId, currencyData),
     setNativeCurrencyRate: (chainId: number, rate: Rate) =>
-      store.setNativeCurrencyData('ethereum', chainId, { usd: rate }),
-    setTokenRates: (rates: Record<Address, UsdRate>) => store.setRates(rates)
+      setNativeCurrencyData('ethereum', chainId, { usd: rate } as any),
+    setTokenRates: (rates: Record<Address, UsdRate>) => setRates(rates)
   }
 
   function handleRatesUpdates(updates: RateUpdate[]) {

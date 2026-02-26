@@ -9,10 +9,12 @@ import {
   SignTypedDataRequest,
   TransactionRequest
 } from '..'
+import { subscribe } from 'valtio'
 import nebulaApi from '../../nebula'
 import signers from '../../signers'
 import windows from '../../windows'
-import store from '../../store'
+import state from '../../store'
+import { setPermission, navClearReq } from '../../store/actions'
 import { TransactionData } from '../../../resources/domain/transaction'
 import { Type as SignerType, getSignerType } from '../../../resources/domain/signer'
 
@@ -56,7 +58,7 @@ class FrameAccount {
   accounts: Accounts
   requests: Record<string, AccountRequest> = {}
 
-  accountObserver: Observer
+  accountObserver: () => void
 
   status = 'ok'
   active = false
@@ -81,7 +83,7 @@ class FrameAccount {
 
     this.update()
 
-    this.accountObserver = store.observer(() => {
+    this.accountObserver = subscribe(state, () => {
       // When signer data changes in any way this will rerun to make sure we're matched correctly
       const updatedSigner = this.findSigner(this.address)
 
@@ -104,7 +106,7 @@ class FrameAccount {
       }
 
       this.update()
-    }, `account:${this.address}`)
+    })
 
     if (this.created.split(':')[0] === 'new') {
       provider.on('connect', () => {
@@ -147,7 +149,7 @@ class FrameAccount {
   }
 
   findSigner(address: Address) {
-    const signers = store('main.signers') as Record<string, Signer>
+    const signers = state.main.signers as Record<string, Signer>
 
     const signerOrdinal = (signer: Signer) => {
       const isOk = signer.status === 'ok' ? 2 : 1
@@ -168,8 +170,8 @@ class FrameAccount {
     const { handlerId, origin, account } = req
     if (account.toLowerCase() === this.address) {
       // Permissions do no live inside the account summary
-      const { name } = store('main.origins', origin)
-      store.setPermission(this.address, { handlerId, origin: name, provider: access })
+      const { name } = state.main.origins[origin] as any
+      setPermission(this.address, { handlerId, origin: name, provider: access })
     }
 
     this.resolveRequest(req)
@@ -209,7 +211,7 @@ class FrameAccount {
     log.info(`clearRequest(${handlerId}) for account ${this.id}`)
 
     delete this.requests[handlerId]
-    store.navClearReq(handlerId, Object.keys(this.requests).length > 0)
+    navClearReq(handlerId, Object.keys(this.requests).length > 0)
 
     this.update()
   }
@@ -457,7 +459,7 @@ class FrameAccount {
   }
 
   close() {
-    this.accountObserver.remove()
+    this.accountObserver()
   }
 
   signMessage(message: string, cb: Callback<string>) {

@@ -14,7 +14,7 @@ import BN from 'bignumber.js'
 import isUtf8 from 'isutf8'
 import { isHex } from 'viem'
 
-import store from '../store'
+import state from '../store'
 import protectedMethods from '../api/protectedMethods'
 import { usesBaseFee, TransactionData, GasFeesSource } from '../../resources/domain/transaction'
 import { getAddress } from '../../resources/utils'
@@ -36,7 +36,7 @@ export function decodeMessage(rawMessage: string) {
 export function checkExistingNonceGas(tx: TransactionData) {
   const { from, nonce } = tx
 
-  const reqs = store('main.accounts', (from || '').toLowerCase(), 'requests')
+  const reqs = state.main.accounts[(from || '').toLowerCase()]?.requests
 
   const requests = Object.keys(reqs || {}).map((key) => reqs[key])
   const existing = requests.filter(
@@ -121,7 +121,7 @@ export function getRawTx(newTx: RPC.SendTransaction.TxParams): TransactionData {
 }
 
 export function gasFees(rawTx: TransactionData) {
-  return store('main.networksMeta', 'ethereum', parseInt(rawTx.chainId, 16), 'gas')
+  return state.main.networksMeta.ethereum[parseInt(rawTx.chainId, 16)]?.gas
 }
 
 export function resError(errorData: string | EVMError, request: RPCId, res: RPCErrorCallback) {
@@ -164,7 +164,7 @@ export function requestPermissions(payload: JSONRPCRequestPayload, res: RPCReque
 }
 
 export function getActiveChainsFull() {
-  const chains: Record<string, Chain> = store('main.networks.ethereum') || {}
+  const chains: Record<string, Chain> = state.main.networks.ethereum || {}
 
   // TODO: Finalize this spec
 
@@ -188,7 +188,7 @@ export function getActiveChainsFull() {
 }
 
 export function getActiveChainDetails() {
-  const chains: Record<string, Chain> = store('main.networks.ethereum') || {}
+  const chains: Record<string, Chain> = state.main.networks.ethereum || {}
 
   return Object.values(chains)
     .filter((chain) => chain.on)

@@ -7,6 +7,11 @@ jest.mock('@sentry/electron/main', () => ({ init: jest.fn(), IPCMode: { Classic:
 jest.mock('../../../main/store')
 
 beforeAll(() => {
+  // Reset state fields so they serialize to '{}' as expected by validEvent
+  store.main.networks = {}
+  store.main.networksMeta = {}
+  store.main.tokens = {}
+  store.main.instanceId = undefined
   store.set('main.privacy.errorReporting', true)
 
   jest.useFakeTimers()

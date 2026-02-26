@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useStore } from '../../store'
+import { useSnapshot } from 'valtio'
+import { state, setSelectedAccount } from '../../store'
 import { useCompact } from '../../hooks/useCompact'
 import AccountList from './AccountList'
 import AccountDetail from './AccountDetail'
@@ -8,7 +9,8 @@ import AddAccount from './AddAccount'
 export default function AccountsView() {
   const [showAdd, setShowAdd] = useState(false)
   const compact = useCompact()
-  const selectedAccount = useStore((s) => s.selectedAccount)
+  const snap = useSnapshot(state)
+  const selectedAccount = snap.selectedAccount
 
   if (showAdd) {
     return <AddAccount onClose={() => setShowAdd(false)} />
@@ -20,7 +22,7 @@ export default function AccountsView() {
       return (
         <div className="h-full overflow-y-auto">
           <button
-            onClick={() => useStore.getState().setSelectedAccount(null)}
+            onClick={() => setSelectedAccount(null)}
             className="text-xs text-gray-500 hover:text-gray-300 mb-3"
           >
             &larr; All Accounts

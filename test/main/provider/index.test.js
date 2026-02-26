@@ -4,6 +4,20 @@ import { validate as validateUUID } from 'uuid'
 import { addHexPrefix, intToHex } from '@ethereumjs/util'
 import { SignTypedDataVersion } from '@metamask/eth-sig-util'
 
+// Capture valtio subscribe callbacks so we can fire them manually
+const subscribeCallbacks = []
+jest.mock('valtio', () => ({
+  subscribe: jest.fn((_state, cb) => {
+    subscribeCallbacks.push(cb)
+    return jest.fn()
+  }),
+  snapshot: jest.fn((s) => JSON.parse(JSON.stringify(s))),
+  proxy: jest.fn((obj) => obj),
+  unstable_enableOp: jest.fn()
+}))
+
+import { switchOriginChain } from '../../../main/store/actions'
+
 import provider from '../../../main/provider'
 import accounts from '../../../main/accounts'
 import connection from '../../../main/chains'
@@ -18,6 +32,9 @@ const address = '0x22dd63c3619818fdbc262c78baee43cb61e9cccf'
 let accountRequests = []
 
 jest.mock('../../../main/store')
+jest.mock('../../../main/store/actions', () => ({
+  switchOriginChain: jest.fn()
+}))
 jest.mock('../../../main/chains', () => ({ send: jest.fn(), syncDataEmit: jest.fn(), on: jest.fn() }))
 jest.mock('../../../main/accounts', () => ({}))
 jest.mock('../../../main/reveal', () => ({
@@ -246,14 +263,14 @@ describe('#send', () => {
       store.set('main.origins', '8073729a-5e59-53b7-9e69-5d9bcff94087', {
         chain: { id: 137, type: 'ethereum' }
       })
-      store.switchOriginChain = jest.fn()
+      switchOriginChain.mockClear()
 
       const cb = (response) => {
         expect(response.error).toBeFalsy()
         expect(response.result).toBeNull()
 
         expect(accountRequests).toHaveLength(0)
-        expect(store.switchOriginChain).toHaveBeenCalledWith(
+        expect(switchOriginChain).toHaveBeenCalledWith(
           '8073729a-5e59-53b7-9e69-5d9bcff94087',
           1,
           'ethereum'
@@ -280,7 +297,7 @@ describe('#send', () => {
       store.set('main.origins', {
         '8073729a-5e59-53b7-9e69-5d9bcff94087': { chain: { id: 42161, type: 'ethereum' } }
       })
-      store.switchOriginChain = jest.fn()
+      switchOriginChain.mockClear()
 
       send(
         {
@@ -293,7 +310,7 @@ describe('#send', () => {
           _origin: '8073729a-5e59-53b7-9e69-5d9bcff94087'
         },
         () => {
-          expect(store.switchOriginChain).toHaveBeenCalledWith(
+          expect(switchOriginChain).toHaveBeenCalledWith(
             '8073729a-5e59-53b7-9e69-5d9bcff94087',
             1,
             'ethereum'
@@ -1714,6 +1731,12 @@ describe('state change events', () => {
     originId: '8073729a-5e59-53b7-9e69-5d9bcff94087'
   }
 
+  // The subscribe callbacks from provider/index.ts:
+  // [0] = ChainsObserver, [1] = OriginChainObserver, [2] = AssetsObserver
+  const fireChainsObserver = () => subscribeCallbacks[0]()
+  const fireOriginsObserver = () => subscribeCallbacks[1]()
+  const fireAssetsObserver = () => subscribeCallbacks[2]()
+
   beforeEach(() => {
     provider.removeAllListeners('data:subscription')
   })
@@ -1721,7 +1744,7 @@ describe('state change events', () => {
   it('fires a chainChanged event to subscribers', (done) => {
     // set the known state to compare the test event to
     store.set('main.origins', subscription.originId, { chain: { id: 1, type: 'ethereum' } })
-    store.getObserver('provider:origins').fire()
+    fireOriginsObserver()
 
     provider.subscriptions.chainChanged = [subscription]
     provider.once('data:subscription', (event) => {
@@ -1735,7 +1758,7 @@ describe('state change events', () => {
     store.set('main.origins', '8073729a-5e59-53b7-9e69-5d9bcff94087', {
       chain: { id: 137, type: 'ethereum' }
     })
-    store.getObserver('provider:origins').fire()
+    fireOriginsObserver()
   })
 
   it('fires a chainsChanged event to subscribers', (done) => {
@@ -1764,7 +1787,7 @@ describe('state change events', () => {
     // set the known state to compare the test event to
     store.set('main.networks.ethereum', networks)
     store.set('main.networksMeta.ethereum', networksMeta)
-    store.getObserver('provider:chains').fire()
+    fireChainsObserver()
 
     provider.subscriptions.chainsChanged = [subscription]
     provider.once('data:subscription', (event) => {
@@ -1828,13 +1851,13 @@ describe('state change events', () => {
     })
 
     hasSubscriptionPermission.mockReturnValueOnce(true)
-    store.getObserver('provider:chains').fire()
+    fireChainsObserver()
     jest.runAllTimers()
   })
 
   it('fires an assetsChanged event to subscribers', (done) => {
     const fireEvent = () => {
-      store.getObserver('provider:assets').fire()
+      fireAssetsObserver()
 
       // event debounce time
       jest.advanceTimersByTime(800)

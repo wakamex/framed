@@ -1,5 +1,5 @@
 import { v5 as uuid } from 'uuid'
-import store from '../store'
+import state from '../store'
 
 import type { Permission } from '../store/state'
 
@@ -29,7 +29,7 @@ export function hasSubscriptionPermission(subType: string, address: string, orig
     return false
   }
 
-  const permissions = (store('main.permissions', address) || {}) as Record<string, Permission>
+  const permissions = (state.main.permissions[address] || {}) as Record<string, Permission>
   const permission = Object.values(permissions).find(({ origin }) => {
     return uuid(origin, uuid.DNS) === originId
   })

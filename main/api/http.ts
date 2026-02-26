@@ -4,7 +4,7 @@ import { isHexString } from '@ethereumjs/util'
 
 import provider from '../provider'
 import accounts from '../accounts'
-import store from '../store'
+import { endOriginSession } from '../store/actions'
 
 import { updateOrigin, isTrusted, parseOrigin } from './origins'
 import validPayload from './validPayload'
@@ -39,7 +39,7 @@ function extendSession(originId: string) {
     clearTimeout(connectionMonitors[originId])
 
     connectionMonitors[originId] = setTimeout(() => {
-      store.endOriginSession(originId)
+      endOriginSession(originId)
     }, 60 * 1000)
   }
 }

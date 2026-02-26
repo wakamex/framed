@@ -7,7 +7,7 @@ import log from 'electron-log'
 import { v4 as uuid } from 'uuid'
 
 import Signer from '../../Signer'
-import store from '../../../store'
+import { removeSigner, updateSigner } from '../../../store/actions'
 
 // Mock user data dir during tests, using worker ID to isolate parallel test workers
 const USER_DATA = app
@@ -105,7 +105,7 @@ class HotSigner extends Signer {
   close(): void {
     if (this.ready) this._worker.disconnect()
     else this.once('ready', () => this._worker.disconnect())
-    ;(store as any).removeSigner(this.id)
+    removeSigner(this.id)
     log.info('Signer closed')
   }
 
@@ -124,14 +124,14 @@ class HotSigner extends Signer {
       // Erase from disk
       this.delete()
       // Remove from store
-      ;(store as any).removeSigner(this.id)
+      removeSigner(this.id)
       // Update id
       this.id = derivedId!
       // Write to disk
       this.save({ encryptedKeys: this.encryptedKeys, encryptedSeed: this.encryptedSeed })
     }
 
-    ;(store as any).updateSigner(this.summary())
+    updateSigner(this.summary())
     log.info('Signer updated')
   }
 

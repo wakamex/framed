@@ -1,4 +1,4 @@
-import store from '../../store'
+import state from '../../store'
 
 import { NATIVE_CURRENCY } from '../../../resources/constants'
 
@@ -13,20 +13,20 @@ interface AssetsChangedHandler {
 // typed access to state
 const storeApi = {
   getBalances: (account: Address): Balance[] => {
-    return store('main.balances', account) || []
+    return state.main.balances[account] || []
   },
   getNativeCurrency: (chainId: number): NativeCurrency => {
-    const currency = store('main.networksMeta.ethereum', chainId, 'nativeCurrency')
+    const currency = state.main.networksMeta.ethereum[chainId]?.nativeCurrency
 
     return currency || { usd: { price: 0 } }
   },
   getUsdRate: (address: Address): UsdRate => {
-    const rate = store('main.rates', address.toLowerCase())
+    const rate = state.main.rates[address.toLowerCase()]
 
     return rate || { usd: { price: 0 } }
   },
   getLastUpdated: (account: Address): number => {
-    return store('main.accounts', account, 'balances.lastUpdated')
+    return state.main.accounts[account]?.balances?.lastUpdated
   }
 }
 
@@ -34,7 +34,7 @@ function createObserver(handler: AssetsChangedHandler) {
   let debouncedAssets: RPC.GetAssets.Assets | null = null
 
   return function () {
-    const currentAccountId = store('selected.current') as string
+    const currentAccountId = (state as any).selected.current as string
 
     if (currentAccountId) {
       const assets = fetchAssets(currentAccountId)

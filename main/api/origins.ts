@@ -2,8 +2,11 @@ import { v5 as uuidv5 } from 'uuid'
 import { IncomingMessage } from 'http'
 import queryString from 'query-string'
 
+import { subscribe } from 'valtio'
+
 import accounts, { AccessRequest } from '../accounts'
-import store from '../store'
+import state from '../store'
+import { addOriginRequest, initOrigin } from '../store/actions'
 
 import type { Permission } from '../store/state'
 
@@ -39,10 +42,10 @@ const isInternalMethod = (method: string) => trustedInternalMethods.includes(met
 
 const storeApi = {
   getPermission: (address: Address, origin: string) => {
-    const permissions: Record<string, Permission> = store('main.permissions', address) || {}
+    const permissions: Record<string, Permission> = (state.main.permissions as any)?.[address] || {}
     return Object.values(permissions).find((p) => p.origin === origin)
   },
-  getKnownExtension: (id: string) => store('main.knownExtensions', id) as boolean
+  getKnownExtension: (id: string) => (state.main.knownExtensions as any)?.[id] as boolean
 }
 
 export function parseOrigin(origin?: string) {
@@ -67,17 +70,17 @@ async function requestExtensionPermission(extension: FrameExtension) {
   }
 
   const result = new Promise<boolean>((resolve) => {
-    const obs = store.observer(() => {
+    const unsubscribe = subscribe(state, () => {
       const isActive = extension.id in activeExtensionChecks
-      const isAllowed = store('main.knownExtensions', extension.id)
+      const isAllowed = (state.main.knownExtensions as any)?.[extension.id]
 
       // wait for a response
       if (isActive && typeof isAllowed !== 'undefined') {
         delete activeExtensionChecks[extension.id]
-        obs.remove()
+        unsubscribe()
         resolve(isAllowed)
       }
-    }, 'origins:requestExtension')
+    })
   })
 
   activeExtensionChecks[extension.id] = result
@@ -103,7 +106,7 @@ async function requestPermission(address: Address, fullPayload: RPCRequestPayloa
     }
 
     accounts.addRequest(request, () => {
-      const { name: originName } = store('main.origins', originId)
+      const { name: originName } = (state.main.origins as any)[originId]
       const permission = storeApi.getPermission(address, originName)
 
       delete activePermissionChecks[permissionCheckId]
@@ -122,7 +125,7 @@ export function updateOrigin(
   connectionMessage = false
 ): OriginUpdateResult {
   const originId = uuidv5(origin, uuidv5.DNS)
-  const existingOrigin = store('main.origins', originId)
+  const existingOrigin = (state.main.origins as any)?.[originId]
 
   if (!connectionMessage) {
     // the extension will attempt to send messages (eth_chainId and net_version) in order
@@ -130,9 +133,9 @@ export function updateOrigin(
     // the user visits in their browser
 
     if (existingOrigin) {
-      store.addOriginRequest(originId)
+      addOriginRequest(originId)
     } else {
-      store.initOrigin(originId, {
+      initOrigin(originId, {
         name: origin,
         chain: {
           id: 1,
@@ -192,7 +195,7 @@ export async function isKnownExtension(extension: FrameExtension) {
 
 export async function isTrusted(payload: RPCRequestPayload) {
   // Permission granted to unknown origins only persist until the Frame is closed, they are not permanent
-  const { name: originName } = store('main.origins', payload._origin) as { name: string }
+  const { name: originName } = (state.main.origins as any)[payload._origin] as { name: string }
   const currentAccount = accounts.current()
 
   if (isTrustedOrigin(originName) && isInternalMethod(payload.method)) {

@@ -8,6 +8,7 @@ const SIGNER_PATH = path.resolve(__dirname, `../.userData${process.env.JEST_WORK
 
 jest.mock('electron')
 jest.mock('../../../../../main/store/persist')
+jest.mock('../../../../../main/store')
 
 // Stubs
 const signers = { add: () => {} }

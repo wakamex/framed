@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useMainState, usePlatform, useStore } from '../../store'
+import { useMainState, usePlatform } from '../../store'
 import { actions, sendAction } from '../../ipc'
 import { getDisplayShortcut, getShortcutFromKeyEvent, isShortcutKey } from '../../../resources/keyboard'
 import Modal from '../../components/Modal'
