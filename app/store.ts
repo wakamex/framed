@@ -11,7 +11,8 @@ import type {
   Permission,
   Shortcut,
   Signer,
-  Token
+  Token,
+  TxRecord
 } from './types'
 
 export interface MainState {
@@ -62,6 +63,7 @@ export interface MainState {
     dontRemind: string[]
     badge?: { type: string; version: string }
   }
+  txHistory: Record<string, TxRecord[]>
 }
 
 export interface AppState {
@@ -71,7 +73,7 @@ export interface AppState {
 
   // Local UI state
   initialized: boolean
-  currentView: 'accounts' | 'signers' | 'chains' | 'settings' | 'send' | 'tokens'
+  currentView: 'accounts' | 'signers' | 'chains' | 'settings' | 'send' | 'tokens' | 'history'
   selectedAccount: string | null
 }
 
@@ -123,11 +125,9 @@ export const useAccounts = () => useSnapshot(state).main?.accounts ?? {}
 export const useSigners = () => useSnapshot(state).main?.signers ?? {}
 export const useSavedSigners = () => useSnapshot(state).main?.savedSigners ?? {}
 export const useCurrentView = () => useSnapshot(state).currentView
-export const useBalances = (address: string) =>
-  useSnapshot(state).main?.balances?.[address] ?? []
+export const useBalances = (address: string) => useSnapshot(state).main?.balances?.[address] ?? []
 export const useTokens = () => useSnapshot(state).main?.tokens ?? { custom: [], known: {} }
-export const usePermissions = (address: string) =>
-  useSnapshot(state).main?.permissions?.[address] ?? {}
+export const usePermissions = (address: string) => useSnapshot(state).main?.permissions?.[address] ?? {}
 export const useOrigins = () => useSnapshot(state).main?.origins ?? {}
 export const usePlatform = () => useSnapshot(state).platform
 export const useColorway = () => useSnapshot(state).main?.colorway ?? 'dark'
@@ -150,9 +150,13 @@ export const usePendingRequests = () => {
       requests.push(req as AccountRequest)
     }
   }
-  return requests.filter(
-    (r) => r && !['confirmed', 'declined', 'error', 'success'].includes(r.status ?? '')
-  )
+  return requests.filter((r) => r && !['confirmed', 'declined', 'error', 'success'].includes(r.status ?? ''))
+}
+
+export const useTxHistory = (address?: string) => {
+  const snap = useSnapshot(state)
+  if (!address) return []
+  return snap.main?.txHistory?.[address.toLowerCase()] ?? []
 }
 
 // Re-export useSnapshot for components that need direct access
