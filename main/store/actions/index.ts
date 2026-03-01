@@ -111,18 +111,27 @@ export function addNetwork(net: any) {
       connection: {
         presets: { local: 'direct' },
         primary: {
-          on: true, current: 'custom', status: 'loading', connected: false,
-          type: '', network: '', custom: primaryRpc
+          on: true,
+          current: 'custom',
+          status: 'loading',
+          connected: false,
+          type: '',
+          network: '',
+          custom: primaryRpc
         },
         secondary: {
-          on: false, current: 'custom', status: 'loading', connected: false,
-          type: '', network: '', custom: secondaryRpc
+          on: false,
+          current: 'custom',
+          status: 'loading',
+          connected: false,
+          type: '',
+          network: '',
+          custom: secondaryRpc
         }
       },
       on: true,
       ...net
     }
-
     ;(state.main.networksMeta as any)[net.type][net.id] = {
       blockHeight: 0,
       name: net.name,
@@ -402,9 +411,7 @@ export function removeBalance(chainId: number, address: string) {
   const key = address.toLowerCase()
   for (const accountAddress in state.main.balances) {
     const balances = state.main.balances[accountAddress] as any[]
-    const idx = balances.findIndex(
-      (b: any) => b.chainId === chainId && b.address.toLowerCase() === key
-    )
+    const idx = balances.findIndex((b: any) => b.chainId === chainId && b.address.toLowerCase() === key)
     if (idx > -1) balances.splice(idx, 1)
   }
 }
@@ -656,7 +663,6 @@ export function muteBetaDisclosure() {
   navDash({ view: 'accounts', data: {} })
 }
 
-
 export function completeOnboarding() {
   state.main.mute.onboardingWindow = true
   ;(state as any).windows.onboard = (state as any).windows.onboard || {}
@@ -744,4 +750,19 @@ export function updateTypedDataRequest(account: string, reqId: string, data: any
     return
   }
   Object.assign(requests[reqId], data)
+}
+
+// ---- Gas Alerts ----
+
+export function setGasAlert(chainId: string, threshold: number, enabled: boolean) {
+  ;(state.main as any).gasAlerts[chainId] = { threshold, enabled, unit: 'gwei' }
+}
+
+export function removeGasAlert(chainId: string) {
+  delete (state.main as any).gasAlerts[chainId]
+}
+
+export function toggleGasAlert(chainId: string) {
+  const alert = (state.main as any).gasAlerts[chainId]
+  if (alert) alert.enabled = !alert.enabled
 }

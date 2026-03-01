@@ -23,6 +23,7 @@ import Erc20Contract from './contracts/erc20'
 import { getErrorCode } from '../resources/utils'
 import { startApi } from './api'
 import './rpc'
+import './gasAlerts'
 
 app.commandLine.appendSwitch('enable-gpu-rasterization', 'true')
 app.commandLine.appendSwitch('force-gpu-rasterization', 'true')
