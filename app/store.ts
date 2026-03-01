@@ -71,7 +71,7 @@ export interface AppState {
 
   // Local UI state
   initialized: boolean
-  currentView: 'accounts' | 'signers' | 'chains' | 'settings' | 'send' | 'tokens'
+  currentView: 'accounts' | 'portfolio' | 'signers' | 'chains' | 'settings' | 'send' | 'tokens'
   selectedAccount: string | null
 }
 
@@ -123,11 +123,9 @@ export const useAccounts = () => useSnapshot(state).main?.accounts ?? {}
 export const useSigners = () => useSnapshot(state).main?.signers ?? {}
 export const useSavedSigners = () => useSnapshot(state).main?.savedSigners ?? {}
 export const useCurrentView = () => useSnapshot(state).currentView
-export const useBalances = (address: string) =>
-  useSnapshot(state).main?.balances?.[address] ?? []
+export const useBalances = (address: string) => useSnapshot(state).main?.balances?.[address] ?? []
 export const useTokens = () => useSnapshot(state).main?.tokens ?? { custom: [], known: {} }
-export const usePermissions = (address: string) =>
-  useSnapshot(state).main?.permissions?.[address] ?? {}
+export const usePermissions = (address: string) => useSnapshot(state).main?.permissions?.[address] ?? {}
 export const useOrigins = () => useSnapshot(state).main?.origins ?? {}
 export const usePlatform = () => useSnapshot(state).platform
 export const useColorway = () => useSnapshot(state).main?.colorway ?? 'dark'
@@ -138,6 +136,7 @@ export const useSelectedAccount = () => {
   return snap.main.accounts[id] ?? null
 }
 export const useAccountsMeta = () => useSnapshot(state).main?.accountsMeta ?? {}
+export const useAllBalances = () => useSnapshot(state).main?.balances ?? {}
 
 // Derived selectors for requests across all accounts
 export const usePendingRequests = () => {
@@ -150,9 +149,7 @@ export const usePendingRequests = () => {
       requests.push(req as AccountRequest)
     }
   }
-  return requests.filter(
-    (r) => r && !['confirmed', 'declined', 'error', 'success'].includes(r.status ?? '')
-  )
+  return requests.filter((r) => r && !['confirmed', 'declined', 'error', 'success'].includes(r.status ?? ''))
 }
 
 // Re-export useSnapshot for components that need direct access
