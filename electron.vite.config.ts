@@ -5,7 +5,7 @@ import { copyFileSync, mkdirSync, readdirSync } from 'fs'
 function copyIcons() {
   return {
     name: 'copy-icons',
-    buildStart() {
+    writeBundle() {
       const src = resolve(__dirname, 'main/windows')
       const dest = resolve(__dirname, 'compiled/main')
       mkdirSync(dest, { recursive: true })
