@@ -67,8 +67,12 @@ jobs:
         run: |
           sudo -H pip install setuptools
       - name: create NPM config file
-        if: ${{ secrets.NPM_AUTH_TOKEN != '' }}
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_AUTH_TOKEN }}" > ./.npmrc
+        run: |
+          if [ -n "$NPM_AUTH_TOKEN" ]; then
+            echo "//registry.npmjs.org/:_authToken=$NPM_AUTH_TOKEN" > ./.npmrc
+          fi
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
       - run: npm run setup:ci
       - run: npm run compile
       - run: npm run test:unit:main -- --testTimeout=5000 --verbose --detectOpenHandles --forceExit
