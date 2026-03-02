@@ -17,7 +17,7 @@ import { registerShortcut } from '../keyboardShortcuts'
 import { Shortcut } from '../store/state/types/shortcuts'
 
 const isDev = process.env.NODE_ENV === 'development'
-const devToolsEnabled = isDev || process.env.ENABLE_DEV_TOOLS === 'true'
+const devToolsEnabled = process.env.ENABLE_DEV_TOOLS === 'true'
 
 let mainWindow: BrowserWindow | null = null
 
