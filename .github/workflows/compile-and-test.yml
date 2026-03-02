@@ -3,9 +3,7 @@ name: Compile and run unit tests
 on:
   push:
     branches:
-      - 'beta.*'
-      - 'canary'
-      - 'develop'
+      - 'main'
   pull_request:
 
 jobs:
@@ -17,14 +15,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 18.12.1
-      - name: Electronegativity
-        uses: doyensec/electronegativity-action@v2.0
-      - name: Upload sarif
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: ../electronegativity_results
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
       - run: |
           sudo apt update -y
           sudo apt install -y libudev-dev
