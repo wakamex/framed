@@ -6,13 +6,11 @@ import { useCompact } from '../../hooks/useCompact'
 import { isNetworkConnected } from '../../../resources/utils/chains'
 import { weiToGwei, hexToInt, roundGwei } from '../../../resources/utils'
 import StatusDot from '../../components/StatusDot'
-import ChainDiscovery from './ChainDiscovery'
 
 export default function ChainsView() {
   const networks = useNetworks()
   const networksMeta = useNetworksMeta()
   const [selectedChain, setSelectedChain] = useState<string | null>(null)
-  const [discoveryOpen, setDiscoveryOpen] = useState(false)
   const compact = useCompact()
 
   const chains = useMemo(() => {
@@ -29,15 +27,7 @@ export default function ChainsView() {
   // Compact: show chain list or detail, not both
   const chainListContent = (
     <>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wide">Networks</h2>
-        <button
-          onClick={() => setDiscoveryOpen(true)}
-          className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded transition-colors"
-        >
-          Discover Chains
-        </button>
-      </div>
+      <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-3">Networks</h2>
         <div className="flex flex-col gap-1">
           {chains.map(([id, chain]) => {
             const meta = networksMeta[id]
@@ -96,10 +86,6 @@ export default function ChainsView() {
     </>
   )
 
-  const discoveryModal = (
-    <ChainDiscovery open={discoveryOpen} onClose={() => setDiscoveryOpen(false)} />
-  )
-
   if (compact) {
     if (selectedChain && selectedNetwork) {
       return (
@@ -111,16 +97,10 @@ export default function ChainsView() {
             &larr; All Networks
           </button>
           <ChainDetail chain={selectedNetwork} meta={selectedMeta} chainId={selectedChain} />
-          {discoveryModal}
         </div>
       )
     }
-    return (
-      <div className="h-full overflow-y-auto">
-        {chainListContent}
-        {discoveryModal}
-      </div>
-    )
+    return <div className="h-full overflow-y-auto">{chainListContent}</div>
   }
 
   return (
@@ -135,7 +115,6 @@ export default function ChainsView() {
           </div>
         )}
       </div>
-      {discoveryModal}
     </div>
   )
 }

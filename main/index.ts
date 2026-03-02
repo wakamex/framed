@@ -20,10 +20,10 @@ import persist from './store/persist'
 import { showUnhandledExceptionDialog } from './windows/dialog'
 import { openBlockExplorer, openExternal } from './windows/window'
 import Erc20Contract from './contracts/erc20'
-import { getChainlist } from './chainlist'
 import { getErrorCode } from '../resources/utils'
 import { startApi } from './api'
 import './rpc'
+import './gasAlerts'
 
 app.commandLine.appendSwitch('enable-gpu-rasterization', 'true')
 app.commandLine.appendSwitch('force-gpu-rasterization', 'true')
@@ -190,15 +190,6 @@ ipcMain.on('tray:addChain', (e, chain) => {
 ipcMain.on('tray:switchChain', (e, type, id, req) => {
   // selectNetwork was never a real action — just resolve the request
   accounts.resolveRequest(req)
-})
-
-ipcMain.handle('tray:fetchChainlist', async () => {
-  try {
-    return await getChainlist()
-  } catch (e) {
-    log.warn('Could not fetch chainlist', e)
-    return []
-  }
 })
 
 ipcMain.handle('tray:getTokenDetails', async (e, contractAddress, chainId) => {

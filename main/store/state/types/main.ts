@@ -5,6 +5,7 @@ import { BalanceSchema } from './balance'
 import { ChainMetadataSchema, ChainSchema } from './chain'
 import { ColorwayPrimarySchema } from './colors'
 import { DappSchema } from './dapp'
+import { GasAlertsSchema } from './gasAlerts'
 import { OriginSchema } from './origin'
 import { PermissionSchema } from './permission'
 import { ShortcutSchema } from './shortcuts'
@@ -68,6 +69,7 @@ export const MainSchema = z.object({
   colorwayPrimary: ColorwayPrimarySchema,
   shortcuts: ShortcutsSchema,
   updater: UpdaterPreferencesSchema,
+  gasAlerts: GasAlertsSchema,
   ...PreferencesSchema
 })
 

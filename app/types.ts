@@ -219,6 +219,14 @@ export interface PermitData {
   nonce: string | number
 }
 
+// --- Gas Alerts ---
+
+export interface GasAlert {
+  threshold: number
+  enabled: boolean
+  unit: 'gwei'
+}
+
 // --- Settings ---
 
 export interface Shortcut {

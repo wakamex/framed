@@ -161,6 +161,9 @@ export const actions = {
   // ENS
   resolveEnsName: (name: string) => rpc('resolveEnsName', name) as Promise<string | null>,
 
-  // Chain discovery
-  fetchChainlist: () => invoke<any[]>('tray:fetchChainlist')
+  // Gas Alerts
+  setGasAlert: (chainId: string, threshold: number, enabled: boolean) =>
+    sendAction('setGasAlert', chainId, threshold, enabled),
+  removeGasAlert: (chainId: string) => sendAction('removeGasAlert', chainId),
+  toggleGasAlert: (chainId: string) => sendAction('toggleGasAlert', chainId)
 }
