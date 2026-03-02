@@ -10,6 +10,7 @@ import { GasAlertsSchema } from './gasAlerts'
 import { OriginSchema } from './origin'
 import { PermissionSchema } from './permission'
 import { ShortcutSchema } from './shortcuts'
+import { TxHistorySchema } from './txHistory'
 
 const ShortcutsSchema = z.object({
   summon: ShortcutSchema
@@ -72,6 +73,7 @@ export const MainSchema = z.object({
   shortcuts: ShortcutsSchema,
   updater: UpdaterPreferencesSchema,
   gasAlerts: GasAlertsSchema,
+  txHistory: TxHistorySchema,
   ...PreferencesSchema
 })
 

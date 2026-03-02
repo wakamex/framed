@@ -13,7 +13,8 @@ import type {
   Permission,
   Shortcut,
   Signer,
-  Token
+  Token,
+  TxRecord
 } from './types'
 
 export interface MainState {
@@ -66,6 +67,7 @@ export interface MainState {
     badge?: { type: string; version: string }
   }
   gasAlerts: Record<string, GasAlert>
+  txHistory: Record<string, TxRecord[]>
 }
 
 export interface AppState {
@@ -75,7 +77,16 @@ export interface AppState {
 
   // Local UI state
   initialized: boolean
-  currentView: 'accounts' | 'portfolio' | 'signers' | 'chains' | 'settings' | 'send' | 'tokens' | 'contacts'
+  currentView:
+    | 'accounts'
+    | 'portfolio'
+    | 'signers'
+    | 'chains'
+    | 'settings'
+    | 'send'
+    | 'tokens'
+    | 'contacts'
+    | 'history'
   selectedAccount: string | null
 }
 
@@ -155,6 +166,12 @@ export const usePendingRequests = () => {
     }
   }
   return requests.filter((r) => r && !['confirmed', 'declined', 'error', 'success'].includes(r.status ?? ''))
+}
+
+export const useTxHistory = (address?: string) => {
+  const snap = useSnapshot(state)
+  if (!address) return []
+  return snap.main?.txHistory?.[address.toLowerCase()] ?? []
 }
 
 export const useAddressBook = () => useSnapshot(state).main?.addressBook ?? {}

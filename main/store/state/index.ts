@@ -23,6 +23,7 @@ export type { NativeCurrency } from './types/nativeCurrency'
 export type { Gas, GasFees } from './types/gas'
 export type { Rate } from './types/rate'
 export type { ColorwayPalette } from './types/colors'
+export type { TxRecord, TxHistory } from './types/txHistory'
 
 const StateSchema = z.object({
   main: MainSchema
@@ -161,6 +162,7 @@ const mainState: M = {
   permissions: main('permissions', {}),
   gasAlerts: main('gasAlerts', {}),
   balances: {},
+  txHistory: main('txHistory', {}),
   tokens: main('tokens', { custom: [], known: {} }),
   rates: {}, // main('rates', {}),
   signers: {},

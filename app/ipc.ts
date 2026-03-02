@@ -174,5 +174,8 @@ export const actions = {
   addContact: (entry: { address: string; name: string; notes?: string }) => sendAction('addContact', entry),
   updateContact: (id: string, update: { address?: string; name?: string; notes?: string }) =>
     sendAction('updateContact', id, update),
-  removeContact: (id: string) => sendAction('removeContact', id)
+  removeContact: (id: string) => sendAction('removeContact', id),
+
+  // Transaction History
+  clearTxHistory: (address: string) => sendAction('clearTxHistory', address)
 }

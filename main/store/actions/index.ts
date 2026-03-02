@@ -790,3 +790,42 @@ export function updateContact(id: string, update: { address?: string; name?: str
 export function removeContact(id: string) {
   delete (state.main as any).addressBook[id]
 }
+
+// ---- Transaction History ----
+
+const TX_HISTORY_LIMIT = 200
+
+export function addTxRecord(address: string, record: any) {
+  const key = address.toLowerCase()
+  if (!state.main.txHistory[key]) (state.main.txHistory as any)[key] = []
+  const records = state.main.txHistory[key] as any[]
+  records.unshift(record)
+  // Drop oldest entries beyond the limit
+  if (records.length > TX_HISTORY_LIMIT) {
+    records.splice(TX_HISTORY_LIMIT)
+  }
+}
+
+export function updateTxStatus(
+  address: string,
+  hash: string,
+  status: 'confirmed' | 'failed',
+  receipt?: { gasUsed: string; blockNumber: number }
+) {
+  const key = address.toLowerCase()
+  const records = state.main.txHistory[key] as any[] | undefined
+  if (!records) return
+  const record = records.find((r: any) => r.hash === hash)
+  if (!record) return
+  record.status = status
+  if (receipt) {
+    record.confirmedAt = Date.now()
+    record.gasUsed = receipt.gasUsed
+    record.blockNumber = receipt.blockNumber
+  }
+}
+
+export function clearTxHistory(address: string) {
+  const key = address.toLowerCase()
+  ;(state.main.txHistory as any)[key] = []
+}
