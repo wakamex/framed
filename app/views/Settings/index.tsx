@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useMainState, usePlatform } from '../../store'
+import { useMainState, useNetworks, useGasAlerts, usePlatform } from '../../store'
 import { actions, sendAction } from '../../ipc'
 import { getDisplayShortcut, getShortcutFromKeyEvent, isShortcutKey } from '../../../resources/keyboard'
 import Modal from '../../components/Modal'
+import type { GasAlert } from '../../types'
 
 export default function SettingsView() {
   const main = useMainState()
@@ -106,6 +107,9 @@ export default function SettingsView() {
         />
       </Section>
 
+      {/* Gas Alerts */}
+      <GasAlertsSection />
+
       {/* Danger zone */}
       <Section title="Danger Zone">
         <button
@@ -195,6 +199,62 @@ function NumberRow({ label, value, min, max, onChange }: {
         className="w-16 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none text-center"
       />
     </div>
+  )
+}
+
+function GasAlertsSection() {
+  const networks = useNetworks()
+  const gasAlerts = useGasAlerts() as Record<string, GasAlert>
+
+  const chains = Object.values(networks).filter((c: any) => c.on && !c.isTestnet)
+
+  if (chains.length === 0) return null
+
+  return (
+    <Section title="Gas Price Alerts">
+      <p className="text-xs text-gray-500 mb-2">
+        Get notified when gas drops below your threshold (in gwei).
+      </p>
+      {chains.map((chain: any) => {
+        const chainId = String(chain.id)
+        const alert = gasAlerts[chainId]
+        const threshold = alert?.threshold ?? 0
+        const enabled = alert?.enabled ?? false
+
+        return (
+          <div key={chainId} className="flex items-center justify-between py-2 gap-3">
+            <div className="text-sm text-gray-200 min-w-[100px]">{chain.name}</div>
+            <input
+              type="number"
+              min={0}
+              placeholder="gwei"
+              value={threshold || ''}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value) || 0
+                actions.setGasAlert(chainId, val, enabled || val > 0)
+              }}
+              className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none text-center"
+            />
+            <button
+              onClick={() => {
+                if (alert) {
+                  actions.toggleGasAlert(chainId)
+                } else {
+                  actions.setGasAlert(chainId, threshold, true)
+                }
+              }}
+              className={`w-10 h-5 rounded-full transition-colors ${enabled ? 'bg-green-600/40' : 'bg-gray-700'}`}
+            >
+              <span
+                className={`block w-4 h-4 rounded-full transition-transform ${
+                  enabled ? 'translate-x-5 bg-green-400' : 'translate-x-0.5 bg-gray-500'
+                }`}
+              />
+            </button>
+          </div>
+        )
+      })}
+    </Section>
   )
 }
 

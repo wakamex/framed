@@ -6,6 +6,7 @@ import type {
   Balance,
   Chain,
   ChainMetadata,
+  GasAlert,
   GasLevels,
   Origin,
   Permission,
@@ -62,6 +63,7 @@ export interface MainState {
     dontRemind: string[]
     badge?: { type: string; version: string }
   }
+  gasAlerts: Record<string, GasAlert>
 }
 
 export interface AppState {
@@ -137,6 +139,7 @@ export const useSelectedAccount = () => {
 }
 export const useAccountsMeta = () => useSnapshot(state).main?.accountsMeta ?? {}
 export const useAllBalances = () => useSnapshot(state).main?.balances ?? {}
+export const useGasAlerts = () => useSnapshot(state).main?.gasAlerts ?? {}
 
 // Derived selectors for requests across all accounts
 export const usePendingRequests = () => {

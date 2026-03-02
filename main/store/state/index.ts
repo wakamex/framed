@@ -158,6 +158,7 @@ const mainState: M = {
   accountsMeta: main('accountsMeta', {}),
   addresses: main('addresses', {}), // Should be removed after 0.5 release
   permissions: main('permissions', {}),
+  gasAlerts: main('gasAlerts', {}),
   balances: {},
   tokens: main('tokens', { custom: [], known: {} }),
   rates: {}, // main('rates', {}),
