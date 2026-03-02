@@ -37,7 +37,6 @@ const config = {
     requirements: 'build/electron-builder-requirements.txt'
   },
   win: {
-    publisherName: 'Frame Labs, Inc.',
     signAndEditExecutable: true,
     icon: 'build/icons/icon.png'
   }
