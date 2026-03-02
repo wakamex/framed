@@ -829,3 +829,20 @@ export function clearTxHistory(address: string) {
   const key = address.toLowerCase()
   ;(state.main.txHistory as any)[key] = []
 }
+
+// ---- RPC Health ----
+
+export function setRpcHealth(
+  chainId: string | number,
+  healthData: {
+    latencyMs: number
+    lastChecked: number
+    status: 'healthy' | 'degraded' | 'down'
+    consecutiveErrors: number
+  }
+) {
+  const chainsMeta = state.main.networksMeta.ethereum as any
+  if (chainsMeta[chainId]) {
+    chainsMeta[chainId].rpcHealth = healthData
+  }
+}
