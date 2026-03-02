@@ -2,9 +2,7 @@ import log from 'electron-log'
 import { v5 as uuidv5 } from 'uuid'
 import { accountNS, isDefaultAccountName } from '../../../resources/domain/account'
 import { toTokenId } from '../../../resources/domain/balance'
-
-// react-restore update function type
-type UpdateFn = (...args: any[]) => any
+import state from '..'
 
 const supportedNetworkTypes = ['ethereum']
 
@@ -38,269 +36,55 @@ function includesToken(tokens: any[], token: any): boolean {
   return tokens.some((t: any) => t.address.toLowerCase() === existingAddress && t.chainId === token.chainId)
 }
 
-export const activateNetwork = (u: UpdateFn, type: string, chainId: number, active: boolean) => {
-  u('main.networks', type, chainId, 'on', () => active)
+function setByPath(obj: any, parts: string[], value: any) {
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (obj[parts[i]] === undefined) obj[parts[i]] = {}
+    obj = obj[parts[i]]
+  }
+  obj[parts[parts.length - 1]] = value
+}
 
+// ---- Networks ----
+
+export function activateNetwork(type: string, chainId: number, active: boolean) {
+  state.main.networks[type][chainId].on = active
   if (!active) {
-    u('main', (main: any) => {
-      switchChainForOrigins(main.origins, chainId, 1)
-      return main
-    })
+    switchChainForOrigins(state.main.origins, chainId, 1)
   }
 }
 
-export const selectPrimary = (u: UpdateFn, netType: string, netId: string, value: string) => {
-  u('main.networks', netType, netId, 'connection.primary.current', () => value)
+export function selectPrimary(netType: string, netId: string, value: string) {
+  state.main.networks[netType][netId].connection.primary.current = value
 }
 
-export const selectSecondary = (u: UpdateFn, netType: string, netId: string, value: string) => {
-  u('main.networks', netType, netId, 'connection.secondary.current', () => value)
+export function selectSecondary(netType: string, netId: string, value: string) {
+  state.main.networks[netType][netId].connection.secondary.current = value
 }
 
-export const setPrimaryCustom = (u: UpdateFn, netType: string, netId: string, target: string) => {
+export function setPrimaryCustom(netType: string, netId: string, target: string) {
   if (!netType || !netId) return
-  u('main.networks', netType, netId, 'connection.primary.custom', () => target)
+  state.main.networks[netType][netId].connection.primary.custom = target
 }
 
-export const setSecondaryCustom = (u: UpdateFn, netType: string, netId: string, target: string) => {
+export function setSecondaryCustom(netType: string, netId: string, target: string) {
   if (!netType || !netId) return
-  u('main.networks', netType, netId, 'connection.secondary.custom', () => target)
+  state.main.networks[netType][netId].connection.secondary.custom = target
 }
 
-export const toggleConnection = (u: UpdateFn, netType: string, netId: string, node: string, on?: boolean) => {
-  u('main.networks', netType, netId, 'connection', node, 'on', (value: boolean) => {
-    return on !== undefined ? on : !value
-  })
+export function toggleConnection(netType: string, netId: string, node: string, on?: boolean) {
+  const connection = state.main.networks[netType][netId].connection as any
+  connection[node].on = on !== undefined ? on : !connection[node].on
 }
 
-export const setPrimary = (u: UpdateFn, netType: string, netId: string, status: any) => {
-  u('main.networks', netType, netId, 'connection.primary', (primary: any) => {
-    return Object.assign({}, primary, status)
-  })
+export function setPrimary(netType: string, netId: string, status: any) {
+  Object.assign(state.main.networks[netType][netId].connection.primary, status)
 }
 
-export const setSecondary = (u: UpdateFn, netType: string, netId: string, status: any) => {
-  u('main.networks', netType, netId, 'connection.secondary', (secondary: any) => {
-    return Object.assign({}, secondary, status)
-  })
+export function setSecondary(netType: string, netId: string, status: any) {
+  Object.assign(state.main.networks[netType][netId].connection.secondary, status)
 }
 
-export const setLaunch = (u: UpdateFn, launch: boolean) => u('main.launch', () => launch)
-export const toggleLaunch = (u: UpdateFn) => u('main.launch', (launch: boolean) => !launch)
-export const toggleReveal = (u: UpdateFn) => u('main.reveal', (reveal: boolean) => !reveal)
-export const toggleShowLocalNameWithENS = (u: UpdateFn) =>
-  u('main.showLocalNameWithENS', (v: boolean) => !v)
-
-export const setPermission = (u: UpdateFn, address: string, permission: any) => {
-  u('main.permissions', address, (permissions: any = {}) => {
-    permissions[permission.handlerId] = permission
-    return permissions
-  })
-}
-
-export const clearPermissions = (u: UpdateFn, address: string) => {
-  u('main.permissions', address, () => ({}))
-}
-
-export const toggleAccess = (u: UpdateFn, address: string, handlerId: string) => {
-  u('main.permissions', address, (permissions: any) => {
-    permissions[handlerId].provider = !permissions[handlerId].provider
-    return permissions
-  })
-}
-
-export const setAccountCloseLock = (u: UpdateFn, value: any) => {
-  u('main.accountCloseLock', () => Boolean(value))
-}
-
-export const syncPath = (u: UpdateFn, path: string, value: any) => {
-  if (!path || path === '*' || path.startsWith('main')) return
-  u(path, () => value)
-}
-
-export const dontRemind = (u: UpdateFn, version: string) => {
-  u('main.updater.dontRemind', (dontRemind: string[]) => {
-    if (!dontRemind.includes(version)) {
-      return [...dontRemind, version]
-    }
-    return dontRemind
-  })
-}
-
-export const setAccount = (u: UpdateFn, account: { id: string }) => {
-  u('selected.current', () => account.id)
-  u('selected.minimized', () => false)
-  u('selected.open', () => true)
-}
-
-export const setAccountSignerStatusOpen = (u: UpdateFn, value: any) => {
-  u('selected.signerStatusOpen', () => Boolean(value))
-}
-
-export const accountTokensUpdated = (u: UpdateFn, address: string) => {
-  u('main.accounts', address, (account: any) => {
-    const balances = { ...account.balances, lastUpdated: new Date().getTime() }
-    return { ...account, balances }
-  })
-}
-
-export const updateAccount = (u: UpdateFn, updatedAccount: any) => {
-  const { id, name } = updatedAccount
-  u('main.accounts', id, (account: any = {}) => {
-    return { ...updatedAccount, balances: account.balances || {} }
-  })
-  if (name && !isDefaultAccountName({ ...updatedAccount, name })) {
-    const accountMetaId = uuidv5(id, accountNS)
-    u('main.accountsMeta', accountMetaId, (accountMeta: any) => {
-      return { ...accountMeta, name, lastUpdated: Date.now() }
-    })
-  }
-}
-
-export const removeAccount = (u: UpdateFn, id: string) => {
-  u('main.accounts', (accounts: any) => {
-    delete accounts[id]
-    return accounts
-  })
-}
-
-export const removeSigner = (u: UpdateFn, id: string) => {
-  u('main.signers', (signers: any) => {
-    delete signers[id]
-    return signers
-  })
-}
-
-export const updateSigner = (u: UpdateFn, signer: any) => {
-  if (!signer.id) return
-  u('main.signers', signer.id, (prev: any) => ({ ...prev, ...signer }))
-}
-
-export const newSigner = (u: UpdateFn, signer: any) => {
-  u('main.signers', (signers: any) => {
-    signers[signer.id] = { ...signer, createdAt: new Date().getTime() }
-    return signers
-  })
-}
-
-export const setLatticeConfig = (u: UpdateFn, id: string, key: string, value: any) => {
-  u('main.lattice', id, key, () => value)
-}
-
-export const updateLattice = (u: UpdateFn, deviceId: string, update: any) => {
-  if (deviceId && update) u('main.lattice', deviceId, (current: any = {}) => Object.assign(current, update))
-}
-
-export const removeLattice = (u: UpdateFn, deviceId: string) => {
-  if (deviceId) {
-    u('main.lattice', (lattice: any = {}) => {
-      delete lattice[deviceId]
-      return lattice
-    })
-  }
-}
-
-export const setLatticeAccountLimit = (u: UpdateFn, limit: number) => {
-  u('main.latticeSettings.accountLimit', () => limit)
-}
-
-export const setLatticeEndpointMode = (u: UpdateFn, mode: string) => {
-  u('main.latticeSettings.endpointMode', () => mode)
-}
-
-export const setLatticeEndpointCustom = (u: UpdateFn, url: string) => {
-  u('main.latticeSettings.endpointCustom', () => url)
-}
-
-export const setLatticeDerivation = (u: UpdateFn, value: string) => {
-  u('main.latticeSettings.derivation', () => value)
-}
-
-export const setLedgerDerivation = (u: UpdateFn, value: string) => {
-  u('main.ledger.derivation', () => value)
-}
-
-export const setTrezorDerivation = (u: UpdateFn, value: string) => {
-  u('main.trezor.derivation', () => value)
-}
-
-export const setLiveAccountLimit = (u: UpdateFn, value: number) => {
-  u('main.ledger.liveAccountLimit', () => value)
-}
-
-export const setMenubarGasPrice = (u: UpdateFn, value: boolean) => {
-  u('main.menubarGasPrice', () => value)
-}
-
-export const muteAlphaWarning = (u: UpdateFn) => {
-  u('main.mute.alphaWarning', () => true)
-}
-
-export const muteWelcomeWarning = (u: UpdateFn) => {
-  u('main.mute.welcomeWarning', () => true)
-}
-
-export const toggleExplorerWarning = (u: UpdateFn) => {
-  u('main.mute.explorerWarning', (v: boolean) => !v)
-}
-
-export const toggleGasFeeWarning = (u: UpdateFn) => {
-  u('main.mute.gasFeeWarning', (v: boolean) => !v)
-}
-
-export const toggleSignerCompatibilityWarning = (u: UpdateFn) => {
-  u('main.mute.signerCompatibilityWarning', (v: boolean) => !v)
-}
-
-export const setShortcut = (u: UpdateFn, name: string, shortcut: any) => {
-  u('main.shortcuts', name, (existingShortcut: any = {}) => ({
-    modifierKeys: shortcut.modifierKeys || existingShortcut.modifierKeys,
-    shortcutKey: shortcut.shortcutKey || existingShortcut.shortcutKey,
-    configuring: shortcut.configuring ?? existingShortcut.configuring,
-    enabled: shortcut.enabled ?? existingShortcut.enabled
-  }))
-}
-
-export const setKeyboardLayout = (u: UpdateFn, layout: any) => {
-  u('keyboardLayout', (existingLayout: any = {}) => ({
-    isUS: layout.isUS ?? existingLayout.isUS
-  }))
-}
-
-export const setAutohide = (u: UpdateFn, v: boolean) => {
-  u('main.autohide', () => v)
-}
-
-export const setErrorReporting = (u: UpdateFn, enable: boolean) => {
-  u('main.privacy.errorReporting', () => enable)
-}
-
-export const setGasFees = (u: UpdateFn, netType: string, netId: string, fees: any) => {
-  u('main.networksMeta', netType, netId, 'gas.price.fees', () => fees)
-}
-
-export const setGasPrices = (u: UpdateFn, netType: string, netId: string, prices: any) => {
-  u('main.networksMeta', netType, netId, 'gas.price.levels', () => prices)
-}
-
-export const setGasDefault = (u: UpdateFn, netType: string, netId: string, level: string, price?: string) => {
-  u('main.networksMeta', netType, netId, 'gas.price.selected', () => level)
-  if (level === 'custom') {
-    u('main.networksMeta', netType, netId, 'gas.price.levels.custom', () => price)
-  } else {
-    u('main.networksMeta', netType, netId, 'gas.price.lastLevel', () => level)
-  }
-}
-
-export const addSampleGasCosts = (u: UpdateFn, netType: string, netId: string, samples: any[]) => {
-  u('main.networksMeta', netType, netId, 'gas.samples', () => samples)
-}
-
-export const setNativeCurrencyData = (u: UpdateFn, netType: string, netId: string, currency: any) => {
-  u('main.networksMeta', netType, netId, 'nativeCurrency', (existing: any) => ({ ...existing, ...currency }))
-}
-
-export const addNetwork = (u: UpdateFn, net: any) => {
+export function addNetwork(net: any) {
   try {
     net.id = validateNetworkSettings(net)
 
@@ -309,7 +93,10 @@ export const addNetwork = (u: UpdateFn, net: any) => {
     delete net.primaryRpc
     delete net.secondaryRpc
 
-    const defaultNetwork = {
+    if (!state.main.networks[net.type]) (state.main.networks as any)[net.type] = {}
+    if (state.main.networks[net.type][net.id]) return
+
+    state.main.networks[net.type][net.id] = {
       id: 0,
       isTestnet: false,
       type: '',
@@ -324,28 +111,19 @@ export const addNetwork = (u: UpdateFn, net: any) => {
       connection: {
         presets: { local: 'direct' },
         primary: {
-          on: true,
-          current: 'custom',
-          status: 'loading',
-          connected: false,
-          type: '',
-          network: '',
-          custom: primaryRpc
+          on: true, current: 'custom', status: 'loading', connected: false,
+          type: '', network: '', custom: primaryRpc
         },
         secondary: {
-          on: false,
-          current: 'custom',
-          status: 'loading',
-          connected: false,
-          type: '',
-          network: '',
-          custom: secondaryRpc
+          on: false, current: 'custom', status: 'loading', connected: false,
+          type: '', network: '', custom: secondaryRpc
         }
       },
-      on: true
+      on: true,
+      ...net
     }
 
-    const defaultMeta = {
+    ;(state.main.networksMeta as any)[net.type][net.id] = {
       blockHeight: 0,
       name: net.name,
       primaryColor: net.primaryColor,
@@ -363,412 +141,530 @@ export const addNetwork = (u: UpdateFn, net: any) => {
         }
       }
     }
-
-    u('main', (main: any) => {
-      if (!main.networks[net.type]) main.networks[net.type] = {}
-      if (main.networks[net.type][net.id]) return main
-
-      main.networks[net.type][net.id] = { ...defaultNetwork, ...net }
-      main.networksMeta[net.type][net.id] = { ...defaultMeta }
-
-      return main
-    })
   } catch (e) {
     log.error(e)
   }
 }
 
-export const updateNetwork = (u: UpdateFn, net: any, newNet: any) => {
+export function updateNetwork(net: any, newNet: any) {
   try {
     net.id = validateNetworkSettings(net)
     newNet.id = validateNetworkSettings(newNet)
 
-    u('main', (main: any) => {
-      const update = Object.assign({}, main.networks[net.type][net.id], newNet)
+    const update = { ...state.main.networks[net.type][net.id], ...newNet }
 
-      Object.keys(update).forEach((k) => {
-        if (typeof update[k] === 'string') {
-          update[k] = update[k].trim()
-        }
-      })
-
-      const { nativeCurrencyName, nativeCurrencyIcon, icon, ...updatedNetwork } = update
-
-      delete main.networks[net.type][net.id]
-      main.networks[updatedNetwork.type][updatedNetwork.id] = updatedNetwork
-
-      Object.entries(main.origins).forEach(([origin, { chain }]: [string, any]) => {
-        if (net.id === chain.id) {
-          main.origins[origin].chain = updatedNetwork
-        }
-      })
-
-      const existingNetworkMeta = main.networksMeta[updatedNetwork.type][updatedNetwork.id] || {}
-      const networkCurrency = existingNetworkMeta.nativeCurrency || {}
-
-      main.networksMeta[updatedNetwork.type][updatedNetwork.id] = {
-        ...existingNetworkMeta,
-        symbol: update.symbol,
-        icon,
-        nativeCurrency: {
-          ...networkCurrency,
-          symbol: update.symbol,
-          name: nativeCurrencyName,
-          icon: nativeCurrencyIcon
-        }
-      }
-
-      return main
+    Object.keys(update).forEach((k) => {
+      if (typeof update[k] === 'string') update[k] = update[k].trim()
     })
+
+    const { nativeCurrencyName, nativeCurrencyIcon, icon, ...updatedNetwork } = update
+
+    delete state.main.networks[net.type][net.id]
+    state.main.networks[updatedNetwork.type][updatedNetwork.id] = updatedNetwork
+
+    Object.entries(state.main.origins).forEach(([origin, { chain }]: [string, any]) => {
+      if (net.id === chain.id) {
+        state.main.origins[origin].chain = updatedNetwork
+      }
+    })
+
+    const existingNetworkMeta = (state.main.networksMeta as any)[updatedNetwork.type][updatedNetwork.id] || {}
+    const networkCurrency = existingNetworkMeta.nativeCurrency || {}
+
+    ;(state.main.networksMeta as any)[updatedNetwork.type][updatedNetwork.id] = {
+      ...existingNetworkMeta,
+      symbol: update.symbol,
+      icon,
+      nativeCurrency: {
+        ...networkCurrency,
+        symbol: update.symbol,
+        name: nativeCurrencyName,
+        icon: nativeCurrencyIcon
+      }
+    }
   } catch (e) {
     log.error(e)
   }
 }
 
-export const removeNetwork = (u: UpdateFn, net: any) => {
+export function removeNetwork(net: any) {
   try {
     net.id = parseInt(net.id)
-
     if (!Number.isInteger(net.id)) throw new Error('Invalid chain id')
     if (net.type === 'ethereum' && net.id === 1) throw new Error('Cannot remove mainnet')
-    u('main', (main: any) => {
-      if (Object.keys(main.networks[net.type]).length <= 1) {
-        return main
-      }
 
-      switchChainForOrigins(main.origins, net.id, 1)
+    if (Object.keys(state.main.networks[net.type]).length <= 1) return
 
-      if (main.networks[net.type]) {
-        delete main.networks[net.type][net.id]
-        delete main.networksMeta[net.type][net.id]
-      }
+    switchChainForOrigins(state.main.origins, net.id, 1)
 
-      return main
-    })
+    if (state.main.networks[net.type]) {
+      delete state.main.networks[net.type][net.id]
+      delete (state.main.networksMeta as any)[net.type][net.id]
+    }
   } catch (e) {
     log.error(e)
   }
 }
 
-export const initOrigin = (u: UpdateFn, originId: string, origin: any) => {
-  u('main.origins', (origins: any) => {
-    const now = new Date().getTime()
-
-    const createdOrigin = {
-      ...origin,
-      session: {
-        requests: 1,
-        startedAt: now,
-        lastUpdatedAt: now
-      }
-    }
-
-    return { ...origins, [originId]: createdOrigin }
-  })
-}
-
-export const addOriginRequest = (u: UpdateFn, originId: string) => {
-  const now = new Date().getTime()
-
-  u('main.origins', originId, (origin: any) => {
-    const isNewSession = origin.session.startedAt < origin.session.endedAt
-    const startedAt = isNewSession ? now : origin.session.startedAt
-    const requests = isNewSession ? 1 : origin.session.requests + 1
-
-    return {
-      ...origin,
-      session: {
-        requests,
-        startedAt,
-        endedAt: undefined,
-        lastUpdatedAt: now
-      }
-    }
-  })
-}
-
-export const endOriginSession = (u: UpdateFn, originId: string) => {
-  u('main.origins', (origins: any) => {
-    const origin = origins[originId]
-    if (origin) {
-      const now = new Date().getTime()
-      const session = Object.assign({}, origin.session, { endedAt: now, lastUpdatedAt: now })
-      origins[originId] = Object.assign({}, origin, { session })
-    }
-    return origins
-  })
-}
-
-export const switchOriginChain = (u: UpdateFn, originId: string, chainId: number, type: string) => {
-  if (originId && typeof chainId === 'number' && type === 'ethereum') {
-    u('main.origins', originId, (origin: any) => ({ ...origin, chain: { id: chainId, type } }))
+export function setBlockHeight(chainId: string | number, blockHeight: number) {
+  const chainsMeta = state.main.networksMeta.ethereum as any
+  if (chainsMeta[chainId]) {
+    chainsMeta[chainId].blockHeight = blockHeight
+  } else {
+    log.error(`Action Error: setBlockHeight chainId: ${chainId} not found in chainsMeta`)
   }
 }
 
-export const clearOrigins = (u: UpdateFn) => {
-  u('main.origins', () => ({}))
+export function setChainColor(chainId: string | number, color: string) {
+  const chainsMeta = state.main.networksMeta.ethereum as any
+  if (chainsMeta[chainId]) {
+    chainsMeta[chainId].primaryColor = color
+  } else {
+    log.error(`Action Error: setChainColor chainId: ${chainId} not found in chainsMeta`)
+  }
 }
 
-export const removeOrigin = (u: UpdateFn, originId: string) => {
-  u('main.origins', (origins: any) => {
-    delete origins[originId]
-    return origins
-  })
+// ---- Gas ----
+
+export function setGasFees(netType: string, netId: string, fees: any) {
+  ;(state.main.networksMeta as any)[netType][netId].gas.price.fees = fees
 }
 
-export const trustExtension = (u: UpdateFn, extensionId: string, trusted: boolean) => {
-  u('main.knownExtensions', (extensions: any = {}) => ({ ...extensions, [extensionId]: trusted }))
+export function setGasPrices(netType: string, netId: string, prices: any) {
+  ;(state.main.networksMeta as any)[netType][netId].gas.price.levels = prices
 }
 
-export const setBlockHeight = (u: UpdateFn, chainId: string | number, blockHeight: number) => {
-  u('main.networksMeta.ethereum', (chainsMeta: any) => {
-    if (chainsMeta[chainId]) {
-      chainsMeta[chainId] = { ...chainsMeta[chainId], blockHeight }
-    } else {
-      log.error(`Action Error: setBlockHeight chainId: ${chainId} not found in chainsMeta`)
-    }
-    return chainsMeta
-  })
+export function setGasDefault(netType: string, netId: string | number, level: string, price?: string) {
+  ;(state.main.networksMeta as any)[netType][netId].gas.price.selected = level
+  if (level === 'custom') {
+    ;(state.main.networksMeta as any)[netType][netId].gas.price.levels.custom = price
+  } else {
+    ;(state.main.networksMeta as any)[netType][netId].gas.price.lastLevel = level
+  }
 }
 
-export const setChainColor = (u: UpdateFn, chainId: string | number, color: string) => {
-  u('main.networksMeta.ethereum', (chainsMeta: any) => {
-    if (chainsMeta[chainId]) {
-      chainsMeta[chainId] = { ...chainsMeta[chainId], primaryColor: color }
-    } else {
-      log.error(`Action Error: setChainColor chainId: ${chainId} not found in chainsMeta`)
-    }
-    return chainsMeta
-  })
+export function addSampleGasCosts(netType: string, netId: string, samples: any[]) {
+  ;(state.main.networksMeta as any)[netType][netId].gas.samples = samples
 }
 
-export const expandDock = (u: UpdateFn, expand: boolean) => {
-  u('dock.expand', () => expand)
+export function setNativeCurrencyData(netType: string, netId: string | number, currency: any) {
+  const meta = (state.main.networksMeta as any)[netType][netId]
+  Object.assign(meta.nativeCurrency, currency)
 }
 
-export const pin = (u: UpdateFn) => {
-  u('main.pin', (pinState: boolean) => !pinState)
+// ---- Accounts ----
+
+export function setAccount(account: { id: string }) {
+  ;(state as any).selected.current = account.id
+  ;(state as any).selected.minimized = false
+  ;(state as any).selected.open = true
 }
 
-export const saveAccount = (u: UpdateFn, id: string) => {
-  u('main.save.account', () => id)
+export function setAccountSignerStatusOpen(value: any) {
+  ;(state as any).selected.signerStatusOpen = Boolean(value)
 }
 
-export const setIPFS = (u: UpdateFn, ipfs: any) => {
-  u('main.ipfs', () => ipfs)
+export function accountTokensUpdated(address: string) {
+  const account = state.main.accounts[address] as any
+  if (account) {
+    account.balances = { ...account.balances, lastUpdated: new Date().getTime() }
+  }
 }
 
-export const setRates = (u: UpdateFn, rates: any) => {
-  u('main.rates', (existingRates: any = {}) => ({ ...existingRates, ...rates }))
+export function updateAccount(updatedAccount: any) {
+  const { id, name } = updatedAccount
+  const existing = state.main.accounts[id] as any
+  state.main.accounts[id] = { ...updatedAccount, balances: existing?.balances || {} }
+
+  if (name && !isDefaultAccountName({ ...updatedAccount, name })) {
+    const accountMetaId = uuidv5(id, accountNS)
+    const existingMeta = state.main.accountsMeta[accountMetaId] || {}
+    state.main.accountsMeta[accountMetaId] = { ...existingMeta, name, lastUpdated: Date.now() }
+  }
 }
 
-export const setInventory = (u: UpdateFn, address: string, inventory: any) => {
-  u('main.inventory', address, () => inventory)
+export function removeAccount(id: string) {
+  delete state.main.accounts[id]
 }
 
-export const setBalance = (u: UpdateFn, address: string, balance: any) => {
-  u('main.balances', address, (balances: any[] = []) => {
-    const existingBalances = balances.filter(
-      (b) => b.address !== balance.address || b.chainId !== balance.chainId
+export function setAccountCloseLock(value: any) {
+  state.main.accountCloseLock = Boolean(value)
+}
+
+export function saveAccount(id: string) {
+  ;(state.main as any).save = { account: id }
+}
+
+export function unsetAccount() {
+  const selected = (state as any).selected
+  selected.open = false
+  selected.minimized = true
+  selected.view = 'default'
+  selected.showAccounts = false
+  ;(state as any).windows.panel.nav = []
+  setTimeout(() => {
+    selected.last = selected.current
+    selected.current = ''
+    selected.requests = {}
+    selected.view = 'default'
+  }, 320)
+}
+
+export function setAccountFilter(value: string) {
+  ;(state as any).panel.accountFilter = value
+}
+
+// ---- Signers ----
+
+export function updateSigner(signer: any) {
+  if (!signer.id) return
+  const existing = state.main.signers[signer.id] || {}
+  state.main.signers[signer.id] = { ...existing, ...signer }
+}
+
+export function newSigner(signer: any) {
+  state.main.signers[signer.id] = { ...signer, createdAt: new Date().getTime() }
+}
+
+export function removeSigner(id: string) {
+  delete state.main.signers[id]
+}
+
+// ---- Lattice & Hardware ----
+
+export function setLatticeConfig(id: string, key: string, value: any) {
+  if (!state.main.lattice[id]) (state.main.lattice as any)[id] = {}
+  ;(state.main.lattice as any)[id][key] = value
+}
+
+export function updateLattice(deviceId: string, update: any) {
+  if (!deviceId || !update) return
+  if (!state.main.lattice[deviceId]) (state.main.lattice as any)[deviceId] = {}
+  Object.assign(state.main.lattice[deviceId], update)
+}
+
+export function removeLattice(deviceId: string) {
+  if (deviceId) delete state.main.lattice[deviceId]
+}
+
+export function setLatticeAccountLimit(limit: number) {
+  state.main.latticeSettings.accountLimit = limit
+}
+
+export function setLatticeEndpointMode(mode: string) {
+  state.main.latticeSettings.endpointMode = mode
+}
+
+export function setLatticeEndpointCustom(url: string) {
+  state.main.latticeSettings.endpointCustom = url
+}
+
+export function setLatticeDerivation(value: string) {
+  state.main.latticeSettings.derivation = value
+}
+
+export function setLedgerDerivation(value: string) {
+  state.main.ledger.derivation = value
+}
+
+export function setTrezorDerivation(value: string) {
+  state.main.trezor.derivation = value
+}
+
+export function setLiveAccountLimit(value: number) {
+  state.main.ledger.liveAccountLimit = value
+}
+
+// ---- Tokens & Balances ----
+
+export function setBalance(address: string, balance: any) {
+  if (!state.main.balances[address]) (state.main.balances as any)[address] = []
+  const balances = state.main.balances[address] as any[]
+  const idx = balances.findIndex((b) => b.address === balance.address && b.chainId === balance.chainId)
+  if (idx >= 0) {
+    balances[idx] = balance
+  } else {
+    balances.push(balance)
+  }
+}
+
+export function setBalances(address: string, newBalances: any[]) {
+  if (!state.main.balances[address]) (state.main.balances as any)[address] = []
+  const balances = state.main.balances[address] as any[]
+  // Remove existing entries that will be replaced
+  const filtered = balances.filter((b: any) =>
+    newBalances.every((nb) => nb.chainId !== b.chainId || nb.address !== b.address)
+  )
+  ;(state.main.balances as any)[address] = [...filtered, ...newBalances]
+}
+
+export function removeBalance(chainId: number, address: string) {
+  const key = address.toLowerCase()
+  for (const accountAddress in state.main.balances) {
+    const balances = state.main.balances[accountAddress] as any[]
+    const idx = balances.findIndex(
+      (b: any) => b.chainId === chainId && b.address.toLowerCase() === key
     )
-    return [...existingBalances, balance]
-  })
+    if (idx > -1) balances.splice(idx, 1)
+  }
 }
 
-export const setBalances = (u: UpdateFn, address: string, newBalances: any[]) => {
-  u('main.balances', address, (balances: any[] = []) => {
-    const existingBalances = balances.filter((b) => {
-      return newBalances.every((bal) => bal.chainId !== b.chainId || bal.address !== b.address)
-    })
-    return [...existingBalances, ...newBalances]
-  })
-}
-
-export const removeBalance = (u: UpdateFn, chainId: number, address: string) => {
-  u('main.balances', (balances: any = {}) => {
-    const key = address.toLowerCase()
-
-    for (const accountAddress in balances) {
-      const balanceIndex = balances[accountAddress].findIndex(
-        (balance: any) => balance.chainId === chainId && balance.address.toLowerCase() === key
-      )
-
-      if (balanceIndex > -1) {
-        balances[accountAddress].splice(balanceIndex, 1)
-      }
-    }
-
-    return balances
-  })
-}
-
-export const removeBalances = (u: UpdateFn, address: string, tokensToRemove: Set<string>) => {
+export function removeBalances(address: string, tokensToRemove: Set<string>) {
   const needsRemoval = (balance: any) => tokensToRemove.has(toTokenId(balance))
-  u('main.balances', address, (balances: any[] = []) => balances.filter((balance) => !needsRemoval(balance)))
+  const balances = (state.main.balances[address] || []) as any[]
+  ;(state.main.balances as any)[address] = balances.filter((b: any) => !needsRemoval(b))
 }
 
-export const setScanning = (u: UpdateFn, address: string, scanning: boolean) => {
+export function setScanning(address: string, scanning: boolean) {
   if (scanning) {
-    u('main.scanning', address, () => true)
+    ;(state.main as any).scanning = (state.main as any).scanning || {}
+    ;(state.main as any).scanning[address] = true
   } else {
     setTimeout(() => {
-      u('main.scanning', address, () => false)
+      if ((state.main as any).scanning) {
+        ;(state.main as any).scanning[address] = false
+      }
     }, 1000)
   }
 }
 
-export const omitToken = (u: UpdateFn, address: string, omitTokenId: string) => {
-  u('main.accounts', address, 'tokens.omit', (omit: string[]) => {
-    omit = omit || []
-    if (omit.indexOf(omitTokenId) === -1) omit.push(omitTokenId)
-    return omit
-  })
+export function omitToken(address: string, omitTokenId: string) {
+  const account = state.main.accounts[address] as any
+  if (!account) return
+  if (!account.tokens) account.tokens = { omit: [] }
+  if (!account.tokens.omit) account.tokens.omit = []
+  if (!account.tokens.omit.includes(omitTokenId)) {
+    account.tokens.omit.push(omitTokenId)
+  }
 }
 
-export const addCustomTokens = (u: UpdateFn, tokens: any[]) => {
-  u('main.tokens.custom', (existing: any[]) => {
-    const existingTokens = existing.filter((token) => !includesToken(tokens, token))
-    const tokensToAdd = tokens.map((t) => ({ ...t, address: t.address.toLowerCase() }))
-    return [...existingTokens, ...tokensToAdd]
-  })
+export function addCustomTokens(tokens: any[]) {
+  const existing = (state.main.tokens.custom || []) as any[]
+  const filtered = existing.filter((t: any) => !includesToken(tokens, t))
+  const toAdd = tokens.map((t) => ({ ...t, address: t.address.toLowerCase() }))
+  ;(state.main.tokens as any).custom = [...filtered, ...toAdd]
 
-  u('main.balances', (balances: any) => {
-    Object.values(balances).forEach((accountBalances: any) => {
-      tokens.forEach((token) => {
-        const tokenAddress = token.address.toLowerCase()
-        const matchingBalance = accountBalances.find(
-          (b: any) => b.address.toLowerCase() === tokenAddress && b.chainId === token.chainId
-        )
-
-        if (matchingBalance) {
-          matchingBalance.logoURI = token.logoURI || matchingBalance.logoURI
-          matchingBalance.symbol = token.symbol || matchingBalance.symbol
-          matchingBalance.name = token.name || matchingBalance.symbol
-        }
-      })
-    })
-
-    return balances
-  })
-}
-
-export const removeCustomTokens = (u: UpdateFn, tokens: any[]) => {
-  const tokenIds = new Set(tokens.map(toTokenId))
-  const needsRemoval = (token: any) => tokenIds.has(toTokenId(token))
-
-  u('main.tokens.custom', (existing: any[]) => {
-    return existing.filter((token) => !needsRemoval(token))
-  })
-
-  u('main.tokens.known', (knownTokens: any) => {
-    for (const address in knownTokens) {
-      knownTokens[address] = knownTokens[address].filter((token: any) => !needsRemoval(token))
-    }
-    return knownTokens
-  })
-}
-
-export const addKnownTokens = (u: UpdateFn, address: string, tokens: any[]) => {
-  u('main.tokens.known', address, (existing: any[] = []) => {
-    const existingTokens = existing.filter((token) => !includesToken(tokens, token))
-    const tokensToAdd = tokens.map((t) => ({ ...t, address: t.address.toLowerCase() }))
-    return [...existingTokens, ...tokensToAdd]
-  })
-}
-
-export const removeKnownTokens = (u: UpdateFn, address: string, tokensToRemove: Set<string>) => {
-  const needsRemoval = (token: any) => tokensToRemove.has(toTokenId(token))
-  u('main.tokens.known', address, (existing: any[] = []) => existing.filter((token) => !needsRemoval(token)))
-}
-
-export const setColorway = (u: UpdateFn, colorway: string) => {
-  u('main.colorway', () => colorway)
-}
-
-export const navForward = (u: UpdateFn, windowId: string, crumb: any) => {
-  if (!windowId || !crumb) return log.warn('Invalid nav forward', windowId, crumb)
-  u('windows', windowId, 'nav', (nav: any[]) => {
-    if (JSON.stringify(nav[0]) !== JSON.stringify(crumb)) nav.unshift(crumb)
-    return nav
-  })
-  u('windows', windowId, 'showing', () => true)
-}
-
-export const navUpdate = (u: UpdateFn, windowId: string, crumb: any, navigate?: boolean) => {
-  if (!windowId || !crumb) return log.warn('Invalid nav forward', windowId, crumb)
-  u('windows', windowId, 'nav', (nav: any[]) => {
-    const updatedNavItem = {
-      view: nav[0].view || crumb.view,
-      data: Object.keys(crumb.data).length === 0 ? {} : Object.assign({}, nav[0].data, crumb.data)
-    }
-    if (JSON.stringify(nav[0]) !== JSON.stringify(updatedNavItem)) {
-      if (navigate) {
-        nav.unshift(updatedNavItem)
-      } else {
-        nav[0] = updatedNavItem
+  // Update logo/symbol on matching balances
+  for (const accountBalances of Object.values(state.main.balances) as any[]) {
+    for (const token of tokens) {
+      const addr = token.address.toLowerCase()
+      const match = accountBalances.find(
+        (b: any) => b.address.toLowerCase() === addr && b.chainId === token.chainId
+      )
+      if (match) {
+        match.logoURI = token.logoURI || match.logoURI
+        match.symbol = token.symbol || match.symbol
+        match.name = token.name || match.symbol
       }
     }
-    return nav
-  })
-  if (navigate) u('windows', windowId, 'showing', () => true)
+  }
 }
 
-export const navReplace = (u: UpdateFn, windowId: string, crumbs: any[] = []) => {
-  u('windows', windowId, (win: any) => {
-    win.nav = crumbs
-    win.showing = true
-    return win
-  })
+export function removeCustomTokens(tokens: any[]) {
+  const tokenIds = new Set(tokens.map(toTokenId))
+  const needsRemoval = (t: any) => tokenIds.has(toTokenId(t))
+
+  ;(state.main.tokens as any).custom = ((state.main.tokens.custom || []) as any[]).filter(
+    (t: any) => !needsRemoval(t)
+  )
+
+  const known = state.main.tokens.known as any
+  for (const address in known) {
+    known[address] = known[address].filter((t: any) => !needsRemoval(t))
+  }
 }
 
-export const navClearSigner = (u: UpdateFn, signerId: string) => {
-  u('windows.dash.nav', (nav: any[]) => nav.filter((navItem) => navItem?.data?.signer !== signerId))
+export function addKnownTokens(address: string, tokens: any[]) {
+  const known = state.main.tokens.known as any
+  if (!known[address]) known[address] = []
+  const existing = known[address] as any[]
+  const filtered = existing.filter((t: any) => !includesToken(tokens, t))
+  const toAdd = tokens.map((t) => ({ ...t, address: t.address.toLowerCase() }))
+  known[address] = [...filtered, ...toAdd]
 }
 
-export const navClearReq = (u: UpdateFn, handlerId: string, showRequestInbox = true) => {
-  u('windows.panel.nav', (nav: any[]) => {
-    return nav.filter((navItem) => {
-      const isClearedRequest = navItem?.data?.requestId === handlerId
-      const isRequestInbox = navItem?.data?.id === 'requests' && navItem?.view === 'expandedModule'
-      return !isClearedRequest && (showRequestInbox || !isRequestInbox)
-    })
-  })
+export function removeKnownTokens(address: string, tokensToRemove: Set<string>) {
+  const known = state.main.tokens.known as any
+  if (!known[address]) return
+  const needsRemoval = (t: any) => tokensToRemove.has(toTokenId(t))
+  known[address] = known[address].filter((t: any) => !needsRemoval(t))
 }
 
-export const navBack = (u: UpdateFn, windowId: string, numSteps = 1) => {
-  if (!windowId) return log.warn('Invalid nav back', windowId)
-  u('windows', windowId, 'nav', (nav: any[]) => {
-    while (numSteps > 0 && nav.length > 0) {
-      nav.shift()
-      numSteps -= 1
-    }
-    return nav
-  })
+export function setRates(rates: any) {
+  Object.assign(state.main.rates, rates)
 }
 
-export const navDash = (u: UpdateFn, navItem: any) => {
-  u('windows.dash.nav', (nav: any[]) => {
-    if (JSON.stringify(nav[0]) !== JSON.stringify(navItem)) nav.unshift(navItem)
-    return nav
-  })
-  u('windows.dash.showing', () => true)
+export function setInventory(address: string, inventory: any) {
+  ;(state.main.inventory as any)[address] = inventory
 }
 
-export const muteBetaDisclosure = (u: UpdateFn) => {
-  u('main.mute.betaDisclosure', () => true)
-  const navItem = { view: 'accounts', data: {} }
-  u('windows.dash.nav', (nav: any[]) => {
-    if (JSON.stringify(nav[0]) !== JSON.stringify(navItem)) nav.unshift(navItem)
-    return nav
-  })
-  u('windows.dash.showing', () => true)
+// ---- Origins & Permissions ----
+
+export function initOrigin(originId: string, origin: any) {
+  const now = new Date().getTime()
+  state.main.origins[originId] = {
+    ...origin,
+    session: { requests: 1, startedAt: now, lastUpdatedAt: now }
+  }
 }
 
-export const mutePylonMigrationNotice = (u: UpdateFn) => {
-  u('main.mute.migrateToPylon', () => true)
+export function addOriginRequest(originId: string) {
+  const now = new Date().getTime()
+  const origin = state.main.origins[originId] as any
+  if (!origin) return
+  const isNewSession = origin.session.startedAt < origin.session.endedAt
+  origin.session = {
+    requests: isNewSession ? 1 : origin.session.requests + 1,
+    startedAt: isNewSession ? now : origin.session.startedAt,
+    endedAt: undefined,
+    lastUpdatedAt: now
+  }
 }
 
-export const migrateToPylonConnections = (u: UpdateFn) => {
+export function endOriginSession(originId: string) {
+  const origin = state.main.origins[originId] as any
+  if (!origin) return
+  const now = new Date().getTime()
+  origin.session.endedAt = now
+  origin.session.lastUpdatedAt = now
+}
+
+export function switchOriginChain(originId: string, chainId: number, type: string) {
+  if (originId && typeof chainId === 'number' && type === 'ethereum') {
+    ;(state.main.origins[originId] as any).chain = { id: chainId, type }
+  }
+}
+
+export function clearOrigins() {
+  ;(state.main as any).origins = {}
+}
+
+export function removeOrigin(originId: string) {
+  delete state.main.origins[originId]
+}
+
+export function setPermission(address: string, permission: any) {
+  if (!state.main.permissions[address]) (state.main.permissions as any)[address] = {}
+  ;(state.main.permissions[address] as any)[permission.handlerId] = permission
+}
+
+export function clearPermissions(address: string) {
+  ;(state.main.permissions as any)[address] = {}
+}
+
+export function toggleAccess(address: string, handlerId: string) {
+  const perm = (state.main.permissions[address] as any)?.[handlerId]
+  if (perm) perm.provider = !perm.provider
+}
+
+export function trustExtension(extensionId: string, trusted: boolean) {
+  ;(state.main.knownExtensions as any)[extensionId] = trusted
+}
+
+// ---- Settings & Preferences ----
+
+export function setLaunch(launch: boolean) {
+  state.main.launch = launch
+}
+
+export function toggleLaunch() {
+  state.main.launch = !state.main.launch
+}
+
+export function toggleReveal() {
+  state.main.reveal = !state.main.reveal
+}
+
+export function toggleShowLocalNameWithENS() {
+  state.main.showLocalNameWithENS = !state.main.showLocalNameWithENS
+}
+
+export function setAutohide(v: boolean) {
+  state.main.autohide = v
+}
+
+export function setErrorReporting(enable: boolean) {
+  state.main.privacy.errorReporting = enable
+}
+
+export function setMenubarGasPrice(value: boolean) {
+  state.main.menubarGasPrice = value
+}
+
+export function setColorway(colorway: string) {
+  ;(state.main as any).colorway = colorway
+}
+
+export function setIPFS(ipfs: any) {
+  ;(state.main as any).ipfs = ipfs
+}
+
+export function pin() {
+  ;(state.main as any).pin = !(state.main as any).pin
+}
+
+export function setShortcut(name: string, shortcut: any) {
+  const existing = (state.main.shortcuts as any)[name] || {}
+  ;(state.main.shortcuts as any)[name] = {
+    modifierKeys: shortcut.modifierKeys || existing.modifierKeys,
+    shortcutKey: shortcut.shortcutKey || existing.shortcutKey,
+    configuring: shortcut.configuring ?? existing.configuring,
+    enabled: shortcut.enabled ?? existing.enabled
+  }
+}
+
+export function setKeyboardLayout(layout: any) {
+  const existing = (state as any).keyboardLayout || {}
+  ;(state as any).keyboardLayout = { isUS: layout.isUS ?? existing.isUS }
+}
+
+export function syncPath(path: string, value: any) {
+  if (!path || path === '*' || path.startsWith('main')) return
+  setByPath(state, path.split('.'), value)
+}
+
+export function dontRemind(version: string) {
+  if (!state.main.updater.dontRemind.includes(version)) {
+    state.main.updater.dontRemind.push(version)
+  }
+}
+
+export function updateBadge(type: string, version?: string) {
+  ;(state.main.updater as any).badge = type ? { type, version: version || '' } : null
+}
+
+// ---- Mute Flags ----
+
+export function muteAlphaWarning() {
+  state.main.mute.alphaWarning = true
+}
+
+export function muteWelcomeWarning() {
+  state.main.mute.welcomeWarning = true
+}
+
+export function toggleExplorerWarning() {
+  state.main.mute.explorerWarning = !state.main.mute.explorerWarning
+}
+
+export function toggleGasFeeWarning() {
+  state.main.mute.gasFeeWarning = !state.main.mute.gasFeeWarning
+}
+
+export function toggleSignerCompatibilityWarning() {
+  state.main.mute.signerCompatibilityWarning = !state.main.mute.signerCompatibilityWarning
+}
+
+export function muteBetaDisclosure() {
+  state.main.mute.betaDisclosure = true
+  navDash({ view: 'accounts', data: {} })
+}
+
+export function mutePylonMigrationNotice() {
+  state.main.mute.migrateToPylon = true
+}
+
+export function migrateToPylonConnections() {
   const pylonChains = ['1', '5', '10', '137', '42161', '11155111']
 
   const switchToPylon = (connection: any = {}) => {
@@ -777,61 +673,100 @@ export const migrateToPylonConnections = (u: UpdateFn) => {
     }
   }
 
-  u('main.networks.ethereum', (chains: any) => {
-    Object.entries(chains).forEach(([id, chain]: [string, any]) => {
-      if (pylonChains.includes(id)) {
-        const { primary, secondary } = chain.connection
-        switchToPylon(primary)
-        switchToPylon(secondary)
-      }
-    })
-    return chains
-  })
-}
-
-export const completeOnboarding = (u: UpdateFn) => {
-  u('main.mute.onboardingWindow', () => true)
-  u('windows.onboard.showing', () => false)
-}
-
-export const unsetAccount = (u: UpdateFn) => {
-  u('selected.open', () => false)
-  u('selected.minimized', () => true)
-  u('selected.view', () => 'default')
-  u('selected.showAccounts', () => false)
-  u('windows.panel.nav', () => [])
-  setTimeout(() => {
-    u('selected', (signer: any) => {
-      signer.last = signer.current
-      signer.current = ''
-      signer.requests = {}
-      signer.view = 'default'
-      return signer
-    })
-  }, 320)
-}
-
-export const setAccountFilter = (u: UpdateFn, value: string) => {
-  u('panel.accountFilter', () => value)
-}
-
-export const setFooterHeight = (u: UpdateFn, win: string, height: number) => {
-  u('windows', win, 'footer.height', () => (height < 40 ? 40 : height))
-}
-
-export const updateTypedDataRequest = (u: UpdateFn, account: string, reqId: string, data: any) => {
-  u('main.accounts', account, 'requests', (requests: any) => {
-    if (!requests[reqId]?.typedMessage?.data) {
-      log.error('No typed data request found for ', { reqId })
-      return requests
+  const chains = state.main.networks.ethereum as any
+  Object.entries(chains).forEach(([id, chain]: [string, any]) => {
+    if (pylonChains.includes(id)) {
+      switchToPylon(chain.connection.primary)
+      switchToPylon(chain.connection.secondary)
     }
-
-    Object.assign(requests[reqId], data)
-
-    return requests
   })
 }
 
-export const updateBadge = (u: UpdateFn, type: string, version?: string) => {
-  u('main.updater.badge', () => type ? { type, version: version || '' } : null)
+export function completeOnboarding() {
+  state.main.mute.onboardingWindow = true
+  ;(state as any).windows.onboard = (state as any).windows.onboard || {}
+  ;(state as any).windows.onboard.showing = false
+}
+
+// ---- Navigation ----
+
+export function navForward(windowId: string, crumb: any) {
+  if (!windowId || !crumb) return log.warn('Invalid nav forward', windowId, crumb)
+  const nav = (state as any).windows[windowId].nav as any[]
+  if (JSON.stringify(nav[0]) !== JSON.stringify(crumb)) nav.unshift(crumb)
+  ;(state as any).windows[windowId].showing = true
+}
+
+export function navUpdate(windowId: string, crumb: any, navigate?: boolean) {
+  if (!windowId || !crumb) return log.warn('Invalid nav forward', windowId, crumb)
+  const nav = (state as any).windows[windowId].nav as any[]
+  const updatedNavItem = {
+    view: nav[0]?.view || crumb.view,
+    data: Object.keys(crumb.data).length === 0 ? {} : { ...nav[0]?.data, ...crumb.data }
+  }
+  if (JSON.stringify(nav[0]) !== JSON.stringify(updatedNavItem)) {
+    if (navigate) {
+      nav.unshift(updatedNavItem)
+    } else {
+      nav[0] = updatedNavItem
+    }
+  }
+  if (navigate) (state as any).windows[windowId].showing = true
+}
+
+export function navReplace(windowId: string, crumbs: any[] = []) {
+  ;(state as any).windows[windowId].nav = crumbs
+  ;(state as any).windows[windowId].showing = true
+}
+
+export function navClearSigner(signerId: string) {
+  const nav = (state as any).windows.dash.nav as any[]
+  ;(state as any).windows.dash.nav = nav.filter((item: any) => item?.data?.signer !== signerId)
+}
+
+export function navClearReq(handlerId: string, showRequestInbox = true) {
+  const nav = (state as any).windows.panel.nav as any[]
+  ;(state as any).windows.panel.nav = nav.filter((item: any) => {
+    const isClearedRequest = item?.data?.requestId === handlerId
+    const isRequestInbox = item?.data?.id === 'requests' && item?.view === 'expandedModule'
+    return !isClearedRequest && (showRequestInbox || !isRequestInbox)
+  })
+}
+
+export function navBack(windowId: string, numSteps = 1) {
+  if (!windowId) return log.warn('Invalid nav back', windowId)
+  const nav = (state as any).windows[windowId].nav as any[]
+  let steps = numSteps
+  while (steps > 0 && nav.length > 0) {
+    nav.shift()
+    steps -= 1
+  }
+}
+
+export function navDash(navItem: any) {
+  const nav = (state as any).windows.dash.nav as any[]
+  if (JSON.stringify(nav[0]) !== JSON.stringify(navItem)) nav.unshift(navItem)
+  ;(state as any).windows.dash.showing = true
+}
+
+// ---- Window & UI State ----
+
+export function expandDock(expand: boolean) {
+  ;(state as any).dock = (state as any).dock || {}
+  ;(state as any).dock.expand = expand
+}
+
+export function setFooterHeight(win: string, height: number) {
+  ;(state as any).windows[win].footer.height = height < 40 ? 40 : height
+}
+
+// ---- Requests ----
+
+export function updateTypedDataRequest(account: string, reqId: string, data: any) {
+  const requests = (state.main.accounts[account] as any)?.requests
+  if (!requests?.[reqId]?.typedMessage?.data) {
+    log.error('No typed data request found for ', { reqId })
+    return
+  }
+  Object.assign(requests[reqId], data)
 }

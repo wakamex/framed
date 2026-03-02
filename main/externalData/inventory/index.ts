@@ -1,14 +1,16 @@
 import log from 'electron-log'
 import Pylon from '@framelabs/pylon-client'
 
-export default function inventory(pylon: Pylon, store: Store) {
+import { setInventory } from '../../store/actions'
+
+export default function inventory(pylon: Pylon, _state: any) {
   function handleUpdates(updates: any[]) {
     if (updates.length === 0) return
 
     log.debug(`got inventory updates for ${updates.map((u) => u.id)}`)
 
     updates.forEach((update) => {
-      store.setInventory(update.id, update.data.inventory)
+      setInventory(update.id, update.data.inventory)
     })
   }
 

@@ -2,23 +2,23 @@
 
 import { ipcMain } from 'electron'
 
-import store from '../../store'
+import { navForward, navBack, navUpdate } from '../../store/actions'
 import type { Breadcrumb } from './breadcrumb'
 
 const nav = {
   forward: (windowId: string, crumb: Breadcrumb) => {
     // Adds new crumb to nav array
-    store.navForward(windowId, crumb)
+    navForward(windowId, crumb)
   },
   back: (windowId: string, steps = 1) => {
     // Removes last crumb from nav array
-    store.navBack(windowId, steps)
+    navBack(windowId, steps)
   },
   update: (windowId: string, crumb: Breadcrumb, navigate = true) => {
     // Updated last crumb in nav array with new data
     // Replaces last crumb when navigate is false
     // Adds new crumb to nav array when navigate is true
-    store.navUpdate(windowId, crumb, navigate)
+    navUpdate(windowId, crumb, navigate)
   }
 }
 

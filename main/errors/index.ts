@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/electron/main'
 import type { Event } from '@sentry/electron/main'
 
-import store from '../store'
+import state from '../store'
 
 const EVENT_RATE_LIMIT = 5
 
@@ -9,7 +9,7 @@ function getCrashReportFields() {
   const fields = ['networks', 'networksMeta', 'tokens']
 
   return fields.reduce(
-    (extra, field) => ({ ...extra, [field]: JSON.stringify(store('main', field) || {}) }),
+    (extra, field) => ({ ...extra, [field]: JSON.stringify((state.main as any)?.[field] || {}) }),
     {}
   )
 }
@@ -41,7 +41,7 @@ export function init() {
   }
 
   const filterEvent = () => {
-    return allowedEvents <= 0 || !store('main.privacy.errorReporting')
+    return allowedEvents <= 0 || !(state.main as any).privacy?.errorReporting
   }
 
   setInterval(() => backOffRateLimitBy(1), 60_000)
@@ -59,7 +59,7 @@ export function init() {
         ...event,
         exception: { values: getSentryExceptions(event) },
         user: { ...event.user, ip_address: undefined }, // remove IP address
-        tags: { ...event.tags, 'frame.instance_id': store('main.instanceId') },
+        tags: { ...event.tags, 'frame.instance_id': (state.main as any).instanceId },
         extra: getCrashReportFields()
       }
     }

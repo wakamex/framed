@@ -7,7 +7,18 @@ import BigNumber from 'bignumber.js'
 import provider from 'eth-provider'
 import log from 'electron-log'
 
-import store from '../store'
+import { subscribe } from 'valtio'
+
+import state from '../store'
+import {
+  setGasPrices,
+  setGasDefault,
+  setGasFees,
+  setBlockHeight,
+  setPrimary,
+  setSecondary,
+  addSampleGasCosts
+} from '../store/actions'
 import BlockMonitor from './blocks'
 import chainConfig from './config'
 import GasMonitor from '../transaction/gasMonitor'
@@ -98,7 +109,7 @@ class ChainConnection extends EventEmitter {
   primary: ConnectionStatus
   secondary: ConnectionStatus
   network?: string
-  private observer: { remove: () => void }
+  private unsubscribe: () => void
 
   constructor(type: string, chainId: string) {
     super()
@@ -126,8 +137,8 @@ class ChainConnection extends EventEmitter {
       connected: false
     }
 
-    this.observer = store.observer(() => {
-      const chain = store('main.networks', type, chainId)
+    this.unsubscribe = subscribe(state, () => {
+      const chain = state.main.networks[type]?.[chainId]
       if (chain) this.connect(chain)
     })
   }
@@ -184,8 +195,8 @@ class ChainConnection extends EventEmitter {
       }
     ]
 
-    const isTestnet = store('main.networks', type, id, 'isTestnet')
-    const nativeCurrency = store('main.networksMeta', type, id, 'nativeCurrency')
+    const isTestnet = state.main.networks[type]?.[id]?.isTestnet
+    const nativeCurrency = state.main.networksMeta[type]?.[id]?.nativeCurrency
     const nativeUSD = new BigNumber(
       nativeCurrency && nativeCurrency.usd && !isTestnet ? nativeCurrency.usd.price : 0
     )
@@ -232,7 +243,7 @@ class ChainConnection extends EventEmitter {
   async feeEstimatesUSD(chainId: number, gasPrice: BigNumber, connectedProvider: any): Promise<GasSampleResult[]> {
     const type = 'ethereum'
     const currentSymbol =
-      store('main.networksMeta', type, chainId, 'nativeCurrency', 'symbol') || 'ETH'
+      state.main.networksMeta[type]?.[chainId]?.nativeCurrency?.symbol || 'ETH'
 
     return this.txEstimates(type, chainId, gasPrice, currentSymbol, connectedProvider)
   }
@@ -270,33 +281,33 @@ class ChainConnection extends EventEmitter {
         if (feeMarket) {
           const gasPrice = parseInt(feeMarket.maxBaseFeePerGas!) + parseInt(feeMarket.maxPriorityFeePerGas!)
 
-          store.setGasPrices(this.type, this.chainId, { fast: addHexPrefix(gasPrice.toString(16)) })
-          store.setGasDefault(this.type, this.chainId, 'fast')
+          setGasPrices(this.type, this.chainId, { fast: addHexPrefix(gasPrice.toString(16)) })
+          setGasDefault(this.type, this.chainId, 'fast')
         } else {
           const gas = await gasMonitor.getGasPrices()
-          const customLevel = store('main.networksMeta', this.type, this.chainId, 'gas.price.levels.custom')
+          const customLevel = state.main.networksMeta[this.type]?.[this.chainId]?.gas?.price?.levels?.custom
 
-          store.setGasPrices(this.type, this.chainId, {
+          setGasPrices(this.type, this.chainId, {
             ...gas,
             custom: customLevel || gas.fast
           })
         }
 
         if (connectedProvider.connected) {
-          const gasPrice = store('main.networksMeta', this.type, this.chainId, 'gas.price.levels.slow')
+          const gasPrice = state.main.networksMeta[this.type]?.[this.chainId]?.gas?.price?.levels?.slow
           const estimatedGasPrice = feeMarket
             ? new BigNumber(feeMarket.nextBaseFee!).plus(new BigNumber(feeMarket.maxPriorityFeePerGas!))
             : new BigNumber(gasPrice)
 
           this.feeEstimatesUSD(parseInt(this.chainId), estimatedGasPrice, connectedProvider).then(
             (samples) => {
-              store.addSampleGasCosts(this.type, this.chainId, samples)
+              addSampleGasCosts(this.type, this.chainId, samples)
             }
           )
         }
 
-        store.setGasFees(this.type, this.chainId, feeMarket)
-        store.setBlockHeight(this.chainId, parseInt(block.number, 16))
+        setGasFees(this.type, this.chainId, feeMarket)
+        setBlockHeight(this.chainId, parseInt(block.number, 16))
 
         this.emit('update', { type: 'fees' })
       } catch (e) {
@@ -308,7 +319,7 @@ class ChainConnection extends EventEmitter {
   }
 
   update(priority: 'primary' | 'secondary') {
-    const network = store('main.networks', this.type, this.chainId)
+    const network = state.main.networks[this.type]?.[this.chainId]
 
     if (!network) {
       // since we poll to re-connect there may be a timing issue where we try
@@ -320,12 +331,12 @@ class ChainConnection extends EventEmitter {
       const { status, connected, type, network } = this.primary
       const details = { status, connected, type, network }
       log.info(`Updating primary connection for chain ${this.chainId}`, details)
-      store.setPrimary(this.type, this.chainId, details)
+      setPrimary(this.type, this.chainId, details)
     } else if (priority === 'secondary') {
       const { status, connected, type, network } = this.secondary
       const details = { status, connected, type, network }
       log.info(`Updating secondary connection for chain ${this.chainId}`, details)
-      store.setSecondary(this.type, this.chainId, details)
+      setSecondary(this.type, this.chainId, details)
     }
   }
 
@@ -421,7 +432,7 @@ class ChainConnection extends EventEmitter {
       ...(NETWORK_PRESETS.ethereum as Record<string, Record<string, string>>)[this.chainId]
     }
 
-    const { primary, secondary } = store('main.networks', this.type, this.chainId, 'connection')
+    const { primary, secondary } = state.main.networks[this.type][this.chainId].connection
     const secondaryTarget =
       secondary.current === 'custom' ? secondary.custom : currentPresets[secondary.current]
 
@@ -560,7 +571,7 @@ class ChainConnection extends EventEmitter {
   close(update = true) {
     log.verbose(`closing chain ${this.chainId}`, { update })
 
-    if (this.observer) this.observer.remove()
+    if (this.unsubscribe) this.unsubscribe()
 
     this.killProvider(this.primary.provider)
     this.stopBlockMonitor('primary')
@@ -616,7 +627,7 @@ class Chains extends EventEmitter {
     }
 
     const updateConnections = () => {
-      const networks = store('main.networks')
+      const networks = state.main.networks
 
       Object.keys(this.connections).forEach((type) => {
         Object.keys(this.connections[type]).forEach((chainId) => {
@@ -676,7 +687,7 @@ class Chains extends EventEmitter {
       updateConnections()
     })
 
-    store.observer(updateConnections, 'chains:connections')
+    subscribe(state, updateConnections)
   }
 
   send(payload: JsonRpcPayload, res: ResCallback, targetChain?: ChainTarget) {

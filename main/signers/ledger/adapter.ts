@@ -5,14 +5,16 @@ import TransportNodeHid from '@ledgerhq/hw-transport-node-hid-singleton'
 import { Subscription } from '@ledgerhq/hw-transport'
 import { Device } from 'node-hid'
 
+import { subscribe } from 'valtio'
 import { Derivation } from '../Signer/derive'
 import { SignerAdapter } from '../adapters'
 import Ledger from './Ledger'
-import store from '../../store'
+import state from '../../store'
+import { navReplace } from '../../store/actions'
 
-function updateDerivation(ledger: Ledger, derivation = store('main.ledger.derivation'), accountLimit = 0) {
+function updateDerivation(ledger: Ledger, derivation = state.main.ledger.derivation, accountLimit = 0) {
   const liveAccountLimit =
-    accountLimit || (derivation === Derivation.live ? store('main.ledger.liveAccountLimit') : 0)
+    accountLimit || (derivation === Derivation.live ? state.main.ledger.liveAccountLimit : 0)
 
   ledger.derivation = derivation
   ledger.accountLimit = liveAccountLimit
@@ -40,9 +42,9 @@ export default class LedgerSignerAdapter extends SignerAdapter {
   }
 
   open() {
-    this.observer = store.observer(() => {
-      const ledgerDerivation = store('main.ledger.derivation')
-      const liveAccountLimit = store('main.ledger.liveAccountLimit')
+    this.observer = subscribe(state, () => {
+      const ledgerDerivation = state.main.ledger.derivation
+      const liveAccountLimit = state.main.ledger.liveAccountLimit
 
       Object.values(this.knownSigners).forEach((ledger) => {
         if (
@@ -83,7 +85,7 @@ export default class LedgerSignerAdapter extends SignerAdapter {
 
   close() {
     if (this.observer) {
-      this.observer.remove()
+      this.observer()
       this.observer = null
     }
 
@@ -153,7 +155,7 @@ export default class LedgerSignerAdapter extends SignerAdapter {
     this.emit('add', ledger)
 
     // Show signer in dash window
-    store.navReplace('dash', [
+    navReplace('dash', [
       {
         view: 'expandedSigner',
         data: { signer: ledger.id }

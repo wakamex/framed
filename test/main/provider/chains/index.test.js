@@ -5,7 +5,7 @@ import {
 } from '../../../../main/provider/chains'
 import store from '../../../../main/store'
 
-jest.mock('../../../../main/store', () => jest.fn())
+jest.mock('../../../../main/store')
 
 const ether = {
   name: 'Ether',
@@ -317,30 +317,12 @@ describe('#createOriginChainObserver', () => {
 // helper functions
 
 function setChains(chainState, chainMetaState = chainMeta) {
-  store.mockImplementation((node) => {
-    if (node === 'selected.current') {
-      return selectedAddress
-    }
-
-    if (node === 'main.networks.ethereum') {
-      return chainState
-    }
-
-    if (node === 'main.networksMeta.ethereum') {
-      return chainMetaState
-    }
-
-    if (node === 'main.colorway') {
-      return 'dark'
-    }
-
-    throw new Error('unexpected store access!')
-  })
+  store.main.networks.ethereum = chainState
+  store.main.networksMeta.ethereum = chainMetaState
+  store.main.colorway = 'dark'
+  store.selected.current = selectedAddress
 }
 
 function setOrigins(originState) {
-  store.mockImplementation((node) => {
-    expect(node).toBe('main.origins')
-    return originState
-  })
+  store.main.origins = originState
 }

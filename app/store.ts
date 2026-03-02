@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+import { proxy, useSnapshot } from 'valtio'
 import type {
   Account,
   AccountMetadata,
@@ -73,97 +73,87 @@ export interface AppState {
   initialized: boolean
   currentView: 'accounts' | 'signers' | 'chains' | 'settings' | 'send' | 'tokens'
   selectedAccount: string | null
-
-  // Actions
-  initialize: (state: { main: MainState; platform: string }) => void
-  applyUpdates: (updates: Array<{ path: string; value: unknown }>) => void
-  setView: (view: AppState['currentView']) => void
-  setSelectedAccount: (id: string | null) => void
 }
 
-function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
-  const keys = path.split('.')
-  const result = { ...obj } as Record<string, unknown>
-  let current = result as Record<string, unknown>
-
-  for (let i = 0; i < keys.length - 1; i++) {
-    current[keys[i]] = { ...(current[keys[i]] as Record<string, unknown>) }
-    current = current[keys[i]] as Record<string, unknown>
-  }
-
-  current[keys[keys.length - 1]] = value
-  return result
-}
-
-export const useStore = create<AppState>((set) => ({
-  // Initial state (populated by IPC on startup)
+// The reactive state proxy for the renderer
+export const state = proxy<AppState>({
   main: {} as MainState,
   platform: '',
-
-  // Local UI state
   initialized: false,
   currentView: 'accounts',
-  selectedAccount: null,
+  selectedAccount: null
+})
 
-  // Initialize with full state from main process
-  initialize: (state) =>
-    set({
-      main: state.main,
-      platform: state.platform,
-      initialized: true
-    }),
+// Initialize with full state from main process
+export function initializeState(data: { main: MainState; platform: string }) {
+  state.main = data.main
+  state.platform = data.platform
+  state.initialized = true
+}
 
-  // Apply incremental state updates from main process
-  applyUpdates: (updates) =>
-    set((prev) => {
-      let next = { ...prev } as Record<string, unknown>
-      for (const update of updates) {
-        next = setNestedValue(next, update.path, update.value)
-      }
-      return next as AppState
-    }),
+// Apply incremental state updates from main process
+function setByPath(obj: any, keys: string[], value: unknown) {
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (obj[keys[i]] === undefined) obj[keys[i]] = {}
+    obj = obj[keys[i]]
+  }
+  obj[keys[keys.length - 1]] = value
+}
 
-  // Local UI actions
-  setView: (view) => set({ currentView: view }),
-  setSelectedAccount: (id) => set({ selectedAccount: id })
-}))
+export function applyUpdates(updates: Array<{ path: string; value: unknown }>) {
+  for (const { path, value } of updates) {
+    setByPath(state, path.split('.'), value)
+  }
+}
 
-// Typed selector helpers
-export const useMainState = () => useStore((s) => s.main)
-export const useNetworks = () => useStore((s) => s.main?.networks?.ethereum ?? {})
-export const useNetworksMeta = () => useStore((s) => s.main?.networksMeta?.ethereum ?? {})
-export const useAccounts = () => useStore((s) => s.main?.accounts ?? {})
-export const useSigners = () => useStore((s) => s.main?.signers ?? {})
-export const useSavedSigners = () => useStore((s) => s.main?.savedSigners ?? {})
-export const useCurrentView = () => useStore((s) => s.currentView)
+// Local UI actions
+export function setView(view: AppState['currentView']) {
+  state.currentView = view
+}
+
+export function setSelectedAccount(id: string | null) {
+  state.selectedAccount = id
+}
+
+// Typed selector hooks (use useSnapshot for automatic fine-grained reactivity)
+export const useMainState = () => useSnapshot(state).main
+export const useNetworks = () => useSnapshot(state).main?.networks?.ethereum ?? {}
+export const useNetworksMeta = () => useSnapshot(state).main?.networksMeta?.ethereum ?? {}
+export const useAccounts = () => useSnapshot(state).main?.accounts ?? {}
+export const useSigners = () => useSnapshot(state).main?.signers ?? {}
+export const useSavedSigners = () => useSnapshot(state).main?.savedSigners ?? {}
+export const useCurrentView = () => useSnapshot(state).currentView
 export const useBalances = (address: string) =>
-  useStore((s) => s.main?.balances?.[address] ?? [])
-export const useTokens = () => useStore((s) => s.main?.tokens ?? { custom: [], known: {} })
+  useSnapshot(state).main?.balances?.[address] ?? []
+export const useTokens = () => useSnapshot(state).main?.tokens ?? { custom: [], known: {} }
 export const usePermissions = (address: string) =>
-  useStore((s) => s.main?.permissions?.[address] ?? {})
-export const useOrigins = () => useStore((s) => s.main?.origins ?? {})
-export const usePlatform = () => useStore((s) => s.platform)
-export const useColorway = () => useStore((s) => s.main?.colorway ?? 'dark')
-export const useSelectedAccount = () =>
-  useStore((s) => {
-    const id = s.selectedAccount
-    if (!id || !s.main?.accounts) return null
-    return s.main.accounts[id] ?? null
-  })
-export const useAccountsMeta = () => useStore((s) => s.main?.accountsMeta ?? {})
+  useSnapshot(state).main?.permissions?.[address] ?? {}
+export const useOrigins = () => useSnapshot(state).main?.origins ?? {}
+export const usePlatform = () => useSnapshot(state).platform
+export const useColorway = () => useSnapshot(state).main?.colorway ?? 'dark'
+export const useSelectedAccount = () => {
+  const snap = useSnapshot(state)
+  const id = snap.selectedAccount
+  if (!id || !snap.main?.accounts) return null
+  return snap.main.accounts[id] ?? null
+}
+export const useAccountsMeta = () => useSnapshot(state).main?.accountsMeta ?? {}
 
 // Derived selectors for requests across all accounts
-export const usePendingRequests = () =>
-  useStore((s) => {
-    const accounts = s.main?.accounts ?? {}
-    const requests: AccountRequest[] = []
-    for (const account of Object.values(accounts)) {
-      const accountRequests = account?.requests ?? {}
-      for (const req of Object.values(accountRequests)) {
-        requests.push(req)
-      }
+export const usePendingRequests = () => {
+  const snap = useSnapshot(state)
+  const accounts = snap.main?.accounts ?? {}
+  const requests: AccountRequest[] = []
+  for (const account of Object.values(accounts)) {
+    const accountRequests = (account as any)?.requests ?? {}
+    for (const req of Object.values(accountRequests)) {
+      requests.push(req as AccountRequest)
     }
-    return requests.filter(
-      (r) => r && !['confirmed', 'declined', 'error', 'success'].includes(r.status ?? '')
-    )
-  })
+  }
+  return requests.filter(
+    (r) => r && !['confirmed', 'declined', 'error', 'success'].includes(r.status ?? '')
+  )
+}
+
+// Re-export useSnapshot for components that need direct access
+export { useSnapshot }

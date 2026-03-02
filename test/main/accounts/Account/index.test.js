@@ -28,14 +28,16 @@ jest.mock('../../../../main/windows/nav', () => ({
   forward: jest.fn()
 }))
 
-jest.mock('../../../../main/store', () => {
-  const store = jest.fn()
-  store.setPermission = jest.fn()
-  store.setSignerView = jest.fn()
-  store.setPanelView = jest.fn()
-  store.observer = jest.fn()
-  return store
-})
+jest.mock('../../../../main/store')
+jest.mock('../../../../main/store/actions', () => ({
+  setPermission: jest.fn(),
+  navClearReq: jest.fn()
+}))
+jest.mock('valtio', () => ({
+  subscribe: jest.fn(() => jest.fn()),
+  snapshot: jest.fn((s) => s),
+  proxy: jest.fn((s) => s)
+}))
 
 let account
 

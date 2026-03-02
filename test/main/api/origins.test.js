@@ -1,5 +1,18 @@
 import { v5 as uuidv5 } from 'uuid'
 import log from 'electron-log'
+import { subscribe } from 'valtio'
+
+// Capture valtio subscribe callbacks so we can fire them manually
+const subscribeCallbacks = []
+jest.mock('valtio', () => ({
+  subscribe: jest.fn((_state, cb) => {
+    subscribeCallbacks.push(cb)
+    return jest.fn()
+  }),
+  snapshot: jest.fn((s) => JSON.parse(JSON.stringify(s))),
+  proxy: jest.fn((obj) => obj),
+  unstable_enableOp: jest.fn()
+}))
 
 import {
   parseOrigin,
@@ -8,11 +21,16 @@ import {
   parseFrameExtension,
   isKnownExtension
 } from '../../../main/api/origins'
+import { initOrigin, addOriginRequest } from '../../../main/store/actions'
 import accounts from '../../../main/accounts'
 import store from '../../../main/store'
 
 jest.mock('../../../main/accounts', () => ({ current: jest.fn(), addRequest: jest.fn() }))
 jest.mock('../../../main/store')
+jest.mock('../../../main/store/actions', () => ({
+  initOrigin: jest.fn(),
+  addOriginRequest: jest.fn()
+}))
 
 beforeAll(() => {
   log.transports.console.level = false
@@ -23,8 +41,9 @@ afterAll(() => {
 })
 
 beforeEach(() => {
-  store.initOrigin = jest.fn()
-  store.addOriginRequest = jest.fn()
+  initOrigin.mockClear()
+  addOriginRequest.mockClear()
+  subscribeCallbacks.length = 0
 
   store.set('main.origins', {})
   store.set('main.permissions', {})
@@ -35,7 +54,7 @@ describe('#updateOrigin', () => {
     it('adds a new origin to the store', () => {
       updateOrigin({}, 'frame.test')
 
-      expect(store.initOrigin).toHaveBeenCalledWith(uuidv5('frame.test', uuidv5.DNS), {
+      expect(initOrigin).toHaveBeenCalledWith(uuidv5('frame.test', uuidv5.DNS), {
         name: 'frame.test',
         chain: {
           type: 'ethereum',
@@ -49,13 +68,13 @@ describe('#updateOrigin', () => {
 
       updateOrigin({}, 'frame.test')
 
-      expect(store.initOrigin).not.toHaveBeenCalled()
+      expect(initOrigin).not.toHaveBeenCalled()
     })
 
     it('does not initialize a new origin on a connection message', () => {
       updateOrigin({}, 'frame.test', true)
 
-      expect(store.initOrigin).not.toHaveBeenCalled()
+      expect(initOrigin).not.toHaveBeenCalled()
     })
     it('sets the payload chain id to mainnet for connection messages with no known origin', () => {
       const originalPayload = {}
@@ -272,7 +291,8 @@ describe('#isKnownExtension', () => {
 
     // simulate user accepting the request
     store.set('main.knownExtensions', { [extension.id]: true })
-    store.getObserver('origins:requestExtension').fire()
+    // Fire the valtio subscribe callback from requestExtensionPermission
+    subscribeCallbacks.forEach((cb) => { try { cb() } catch (e) {} })
 
     return expect(result).resolves.toBe(true)
   })
@@ -284,7 +304,8 @@ describe('#isKnownExtension', () => {
 
     // simulate user accepting the request
     store.set('main.knownExtensions', { [extension.id]: true })
-    store.getObserver('origins:requestExtension').fire()
+    // Fire the valtio subscribe callback from requestExtensionPermission
+    subscribeCallbacks.forEach((cb) => { try { cb() } catch (e) {} })
 
     return expect(result).resolves.toBe(true)
   })
@@ -296,7 +317,8 @@ describe('#isKnownExtension', () => {
 
     // simulate user rejecting the request
     store.set('main.knownExtensions', { [extension.id]: false })
-    store.getObserver('origins:requestExtension').fire()
+    // Fire the valtio subscribe callback from requestExtensionPermission
+    subscribeCallbacks.forEach((cb) => { try { cb() } catch (e) {} })
 
     return expect(result).resolves.toBe(false)
   })

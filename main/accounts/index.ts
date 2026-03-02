@@ -5,7 +5,8 @@ import { addHexPrefix, intToHex } from '@ethereumjs/util'
 import { v5 as uuidv5 } from 'uuid'
 
 import provider from '../provider'
-import store from '../store'
+import state from '../store'
+import { updateAccount, setGasDefault, setAccount, unsetAccount, navDash, removeAccount } from '../store/actions'
 import FrameAccount from './Account'
 import ExternalDataScanner, { DataScanner } from '../externalData'
 import Signer from '../signers/Signer'
@@ -71,13 +72,13 @@ const frameOriginId = uuidv5('frame-internal', uuidv5.DNS)
 
 const storeApi = {
   getAccounts: function () {
-    return (store('main.accounts') || {}) as Record<string, Account>
+    return (state.main.accounts || {}) as Record<string, Account>
   },
   getAccount: function (id: string) {
-    return (store('main.accounts', id) || {}) as Account
+    return (state.main.accounts[id] || {}) as Account
   },
   getSigners: function () {
-    return Object.values((store('main.signers') || {}) as Record<string, Signer>)
+    return Object.values((state.main.signers || {}) as Record<string, Signer>)
   }
 }
 
@@ -126,13 +127,13 @@ export class Accounts extends EventEmitter {
     if (!address) return cb(new Error('No address, will not add account'))
     address = address.toLowerCase()
 
-    let account = store('main.accounts', address)
+    let account = state.main.accounts[address]
     if (!account) {
       log.info(`Account ${address} not found, creating account`)
 
       const created = 'new:' + Date.now()
       const accountMetaId = uuidv5(address, accountNS)
-      const accountMeta = store('main.accountsMeta', accountMetaId) || { name }
+      const accountMeta = state.main.accountsMeta[accountMetaId] || { name }
       this.accounts[address] = new FrameAccount(
         { address, name: accountMeta.name, created, options, active: false },
         this
@@ -151,7 +152,7 @@ export class Accounts extends EventEmitter {
 
   update(account: Account) {
     if (!this.accounts || this.accounts[account.id]) {
-      store.updateAccount(account)
+      updateAccount(account)
     }
   }
 
@@ -229,10 +230,10 @@ export class Accounts extends EventEmitter {
 
       const data = JSON.parse(JSON.stringify(txRequest.data))
       const targetChain = { type: 'ethereum', id: parseInt(data.chainId, 16) }
-      const { levels } = store('main.networksMeta', targetChain.type, targetChain.id, 'gas.price')
+      const { levels } = (state.main.networksMeta as any)[targetChain.type][targetChain.id].gas.price
 
       // Set the gas default to asap
-      store.setGasDefault(targetChain.type, targetChain.id, 'asap', levels.asap)
+      setGasDefault(targetChain.type, targetChain.id, 'asap', levels.asap)
 
       const params =
         type === ReplacementType.Speed
@@ -310,7 +311,7 @@ export class Accounts extends EventEmitter {
                 if (!txRequest.feeAtTime) {
                   const network = targetChain
                   if (network.type === 'ethereum' && network.id === 1) {
-                    const ethPrice = store('main.networksMeta.ethereum.1.nativeCurrency.usd.price')
+                    const ethPrice = (state.main.networksMeta as any).ethereum[1].nativeCurrency.usd.price
 
                     if (ethPrice && txRequest.tx && txRequest.tx.receipt && this.accounts[account.address]) {
                       const { gasUsed } = txRequest.tx.receipt
@@ -542,7 +543,7 @@ export class Accounts extends EventEmitter {
       previouslyActiveAccount.update()
     }
 
-    store.setAccount(summary)
+    setAccount(summary)
 
     if (currentAccount.status === 'ok')
       this.verifyAddress(false, (err, verified) => {
@@ -567,7 +568,7 @@ export class Accounts extends EventEmitter {
         try {
           const tx = req.data
           const chain = { type: 'ethereum', id: parseInt(tx.chainId, 16) }
-          const gas = store('main.networksMeta', chain.type, chain.id, 'gas')
+          const gas = (state.main.networksMeta as any)[chain.type][chain.id].gas
 
           if (usesBaseFee(tx)) {
             const { maxBaseFeePerGas, maxPriorityFeePerGas } = gas.price.fees
@@ -609,7 +610,7 @@ export class Accounts extends EventEmitter {
     const summary = { id: '', status: '' }
     if (cb) cb(null, summary)
 
-    store.unsetAccount()
+    unsetAccount()
 
     // setTimeout(() => { // Clear signer requests when unset
     //   if (s) {
@@ -694,7 +695,7 @@ export class Accounts extends EventEmitter {
     const signerUnavailable = (knownSigner?: Signer) => {
       const crumb = knownSigner ? signerPanelCrumb(knownSigner) : accountPanelCrumb()
 
-      store.navDash(crumb)
+      navDash(crumb)
       return cb(new Error('Signer unavailable'))
     }
 
@@ -938,7 +939,7 @@ export class Accounts extends EventEmitter {
 
     const currentAccount = this.current()
     if (currentAccount && currentAccount.address === address) {
-      store.unsetAccount()
+      unsetAccount()
 
       const defaultAccount = (Object.values(this.accounts).filter((a) => a.address !== address) || [])[0]
       if (defaultAccount) {
@@ -950,7 +951,7 @@ export class Accounts extends EventEmitter {
 
     if (this.accounts[address]) this.accounts[address].close()
 
-    store.removeAccount(address)
+    removeAccount(address)
     delete this.accounts[address]
   }
 

@@ -1,20 +1,23 @@
-import state from './state'
-import * as actions from './actions'
+import { proxy, unstable_enableOp, subscribe, snapshot } from 'valtio'
+import buildInitialState from './state'
 import persist from './persist'
-import { createCompatStore } from './storeCompat'
 
-const store = createCompatStore(state(), actions)
+// Enable operation tracking for persistence + IPC sync
+unstable_enableOp()
+
+// Create the reactive state proxy
+const state = proxy(buildInitialState())
 
 // Persist initial full state
-persist.set('main', store('main'))
+persist.set('main', snapshot(state).main)
 
-// Apply updates to persisted state
-store.api.feed((_state, actionBatch) => {
-  actionBatch.forEach((action) => {
-    action.updates.forEach((update) => {
-      persist.queue(update.path, update.value)
-    })
-  })
+// Persist incremental changes (only main state — transient UI state is not persisted)
+subscribe(state, (ops: any[]) => {
+  for (const [_op, path, value] of ops) {
+    if (path[0] === 'main') {
+      persist.queue(path.join('.'), value)
+    }
+  }
 })
 
-export default store
+export default state

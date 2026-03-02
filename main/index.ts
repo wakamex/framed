@@ -2,6 +2,7 @@ import { app, ipcMain, protocol, net, clipboard, powerMonitor } from 'electron'
 import path from 'path'
 import log from 'electron-log'
 import url from 'url'
+import { subscribe, snapshot } from 'valtio'
 
 // DO NOT MOVE - env var below is required for app init and must be set before all local imports
 process.env.BUNDLE_LOCATION = process.env.BUNDLE_LOCATION || path.resolve(__dirname, './../..', 'bundle')
@@ -9,7 +10,8 @@ process.env.BUNDLE_LOCATION = process.env.BUNDLE_LOCATION || path.resolve(__dirn
 import * as errors from './errors'
 import windows from './windows'
 import menu from './menu'
-import store from './store'
+import state from './store'
+import * as actions from './store/actions'
 import accounts from './accounts'
 import * as launch from './launch'
 import updater from './updater'
@@ -105,7 +107,7 @@ ipcMain.on('tray:resetAllSettings', () => {
 })
 
 ipcMain.on('tray:replaceTx', async (e, id, type) => {
-  store.navBack('panel')
+  actions.navBack('panel')
   setTimeout(async () => {
     try {
       await accounts.replaceTx(id, type)
@@ -120,17 +122,17 @@ ipcMain.on('tray:clipboardData', (e, data) => {
 })
 
 ipcMain.on('tray:installAvailableUpdate', () => {
-  store.updateBadge('')
+  actions.updateBadge('')
 
   updater.fetchUpdate()
 })
 
 ipcMain.on('tray:dismissUpdate', (e, version, remind) => {
   if (!remind) {
-    store.dontRemind(version)
+    actions.dontRemind(version)
   }
 
-  store.updateBadge('')
+  actions.updateBadge('')
 
   updater.dismissUpdate()
 })
@@ -181,11 +183,11 @@ ipcMain.on('tray:giveAccess', (e, req, access) => {
 })
 
 ipcMain.on('tray:addChain', (e, chain) => {
-  store.addNetwork(chain)
+  actions.addNetwork(chain)
 })
 
 ipcMain.on('tray:switchChain', (e, type, id, req) => {
-  if (type && id) store.selectNetwork(type, id)
+  // selectNetwork was never a real action — just resolve the request
   accounts.resolveRequest(req)
 })
 
@@ -202,7 +204,7 @@ ipcMain.handle('tray:getTokenDetails', async (e, contractAddress, chainId) => {
 ipcMain.on('tray:addToken', (e, token, req) => {
   if (token) {
     log.info('adding custom token', token)
-    store.addCustomTokens([token])
+    actions.addCustomTokens([token])
   }
   if (req) accounts.resolveRequest(req)
 })
@@ -211,8 +213,8 @@ ipcMain.on('tray:removeToken', (e, token) => {
   if (token) {
     log.info('removing custom token', token)
 
-    store.removeBalance(token.chainId, token.address)
-    store.removeCustomTokens([token])
+    actions.removeBalance(token.chainId, token.address)
+    actions.removeCustomTokens([token])
   }
 })
 
@@ -226,18 +228,18 @@ ipcMain.on('tray:resetNonce', (e, handlerId) => {
 
 ipcMain.on('tray:removeOrigin', (e, handlerId) => {
   accounts.removeRequests(handlerId)
-  store.removeOrigin(handlerId)
+  actions.removeOrigin(handlerId)
 })
 
 ipcMain.on('tray:clearOrigins', () => {
-  Object.keys(store('main.origins')).forEach((handlerId) => {
+  Object.keys(state.main.origins).forEach((handlerId) => {
     accounts.removeRequests(handlerId)
   })
-  store.clearOrigins()
+  actions.clearOrigins()
 })
 
 ipcMain.on('tray:syncPath', (e, path, value) => {
-  store.syncPath(path, value)
+  actions.syncPath(path, value)
 })
 
 ipcMain.on('tray:ready', () => {
@@ -293,8 +295,10 @@ app.on('ready', () => {
   })
 })
 
+// Dynamic action dispatch from renderer
 ipcMain.on('tray:action', (e, action, ...args) => {
-  if (store[action]) return store[action](...args)
+  const fn = (actions as any)[action]
+  if (fn) return fn(...args)
   log.info('Tray sent unrecognized action: ', action)
 })
 
@@ -323,11 +327,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-let launchStatus = store('main.launch')
+let launchStatus = state.main.launch
 
-store.observer(() => {
-  if (launchStatus !== store('main.launch')) {
-    launchStatus = store('main.launch')
+subscribe(state, () => {
+  if (launchStatus !== state.main.launch) {
+    launchStatus = state.main.launch
     launchStatus ? launch.enable() : launch.disable()
   }
 })

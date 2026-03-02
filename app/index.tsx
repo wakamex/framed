@@ -3,7 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { useEffect, useState } from 'react'
 
 import { initializeApp, sendEvent, sendAction, actions } from './ipc'
-import { useStore, useCurrentView, useAccounts, usePendingRequests } from './store'
+import { useSnapshot } from 'valtio'
+import { state, useCurrentView, useAccounts, usePendingRequests, setView as setViewAction } from './store'
 import { useCompact } from './hooks/useCompact'
 import AccountsView from './views/Accounts'
 import SignersView from './views/Signers'
@@ -15,12 +16,12 @@ import OnboardView from './views/Onboard'
 import SendView from './views/Send'
 
 function App() {
-  const initialized = useStore((s) => s.initialized)
+  const snap = useSnapshot(state)
+  const initialized = snap.initialized
   const currentView = useCurrentView()
-  const setView = useStore((s) => s.setView)
-  const colorway = useStore((s) => s.main?.colorway)
+  const colorway = snap.main?.colorway
   const accounts = useAccounts()
-  const onboardingComplete = useStore((s) => s.main?.mute?.onboardingWindow)
+  const onboardingComplete = snap.main?.mute?.onboardingWindow
 
   useEffect(() => {
     if (colorway) {
@@ -48,13 +49,13 @@ function App() {
   }
 
   const pendingRequests = usePendingRequests()
-  const updateBadge = useStore((s) => s.main?.updater?.badge)
+  const updateBadge = snap.main?.updater?.badge
   const compact = useCompact()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Close sidebar when switching views on compact layout
   const handleViewChange = (view: string) => {
-    setView(view)
+    setViewAction(view)
     if (compact) setSidebarOpen(false)
   }
 

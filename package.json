@@ -81,7 +81,6 @@
     "gridplus-sdk": "3.2.0",
     "hdkey": "2.1.0",
     "hotkeys-js": "3.10.1",
-    "immer": "^11.1.4",
     "isutf8": "4.0.0",
     "nebula": "0.1.5",
     "node-fetch": "2.6.7",
@@ -93,10 +92,10 @@
     "semver": "7.6.3",
     "tailwindcss": "4.0.0",
     "uuid": "9.0.0",
+    "valtio": "^2.3.0",
     "viem": "2.23.2",
     "ws": "8.18.0",
     "zod": "3.24.1",
-    "zustand": "4.5.5",
     "zxcvbn": "4.4.2"
   },
   "devDependencies": {

@@ -1,23 +1,23 @@
 import deepEqual from 'deep-equal'
 
 import { Colorway, getColor } from '../../../resources/colors'
-import store from '../../store'
+import state from '../../store'
 
 import type { Chain, ChainMetadata, Origin } from '../../store/state'
 
 // typed access to state
 const storeApi = {
   getCurrentOrigins: (): Record<string, Origin> => {
-    return store('main.origins')
+    return state.main.origins
   },
   getChains: (): Record<string, Chain> => {
-    return store('main.networks.ethereum') || {}
+    return state.main.networks.ethereum || {}
   },
   getChainsMeta: (): Record<string, ChainMetadata> => {
-    return store('main.networksMeta.ethereum') || {}
+    return state.main.networksMeta.ethereum || {}
   },
   getColorway: (): Colorway => {
-    return store('main.colorway') as Colorway
+    return state.main.colorway as Colorway
   }
 }
 
@@ -43,7 +43,7 @@ function createChainsObserver(handler: ChainsChangedHandler) {
       availableChains = currentChains
 
       setTimeout(() => {
-        const currentAccount = store('selected.current') as string
+        const currentAccount = (state as any).selected.current as string
         handler.chainsChanged(currentAccount, availableChains)
       }, 0)
     }

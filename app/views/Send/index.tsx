@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { Chain } from '../../types'
-import { useStore, useAccounts, useBalances, useNetworks } from '../../store'
+import { useSnapshot } from 'valtio'
+import { state, useAccounts, useBalances, useNetworks } from '../../store'
 import { rpc } from '../../ipc'
 
 export default function SendView() {
   const accounts = useAccounts()
-  const selectedAccount = useStore((s) => s.selectedAccount)
+  const snap = useSnapshot(state)
+  const selectedAccount = snap.selectedAccount
   const networks = useNetworks()
 
   // Use selected account or first available

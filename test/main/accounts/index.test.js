@@ -2,7 +2,15 @@ import log from 'electron-log'
 import { addHexPrefix, intToHex } from '@ethereumjs/util'
 import BigNumber from 'bignumber.js'
 
+jest.mock('valtio', () => ({
+  subscribe: jest.fn((_state, _cb) => jest.fn()),
+  snapshot: jest.fn((s) => JSON.parse(JSON.stringify(s))),
+  proxy: jest.fn((obj) => obj),
+  unstable_enableOp: jest.fn()
+}))
+
 import store from '../../../main/store'
+import { setGasFees, navDash, newSigner, removeSigner } from '../../../main/store/actions'
 import provider from '../../../main/provider'
 import Accounts from '../../../main/accounts'
 import signers from '../../../main/signers'
@@ -10,6 +18,27 @@ import { signerCompatibility, maxFee } from '../../../main/transaction'
 import { GasFeesSource } from '../../../resources/domain/transaction'
 import { gweiToHex } from '../../util'
 
+jest.mock('../../../main/store')
+jest.mock('../../../main/store/actions', () => {
+  const store = require('../../../main/store')
+  return {
+    setGasFees: jest.fn(),
+    setGasDefault: jest.fn(),
+    newSigner: jest.fn((signer) => {
+      store.main.signers[signer.id] = { ...signer, createdAt: Date.now() }
+    }),
+    removeSigner: jest.fn((id) => {
+      delete store.main.signers[id]
+    }),
+    navDash: jest.fn(),
+    navClearReq: jest.fn(),
+    setPermission: jest.fn(),
+    updateAccount: jest.fn(),
+    setAccount: jest.fn(),
+    unsetAccount: jest.fn(),
+    removeAccount: jest.fn()
+  }
+})
 jest.mock('../../../main/provider', () => ({ send: jest.fn(), emit: jest.fn(), on: jest.fn() }))
 jest.mock('../../../main/signers', () => ({ get: jest.fn() }))
 jest.mock('../../../main/windows', () => ({ broadcast: jest.fn(), showTray: jest.fn() }))
@@ -106,7 +135,7 @@ describe('#updatePendingFees', () => {
   beforeEach(() => {
     request.data.gasFeesSource = GasFeesSource.Frame
 
-    store.setGasFees('ethereum', parseInt(request.data.chainId), {
+    store.set('main.networksMeta.ethereum', parseInt(request.data.chainId), 'gas.price.fees', {
       maxBaseFeePerGas: gweiToHex(9),
       maxPriorityFeePerGas: gweiToHex(2)
     })
@@ -737,7 +766,7 @@ describe('#signerCompatibility', () => {
   }
 
   beforeEach(() => {
-    store.navDash = jest.fn()
+    navDash.mockClear()
 
     activeSigner = {
       id: '12',
@@ -747,8 +776,8 @@ describe('#signerCompatibility', () => {
       summary: jest.fn()
     }
 
-    store.newSigner(activeSigner)
-    store.newSigner(lockedSeedSigner)
+    newSigner(activeSigner)
+    newSigner(lockedSeedSigner)
 
     signers.get.mockImplementation((id) => {
       if (id === activeSigner.id) return activeSigner
@@ -761,8 +790,8 @@ describe('#signerCompatibility', () => {
   })
 
   afterEach(() => {
-    store.removeSigner(activeSigner.id)
-    store.removeSigner(lockedSeedSigner.id)
+    removeSigner(activeSigner.id)
+    removeSigner(lockedSeedSigner.id)
 
     Accounts.removeRequests([request.handlerId])
   })
@@ -775,7 +804,7 @@ describe('#signerCompatibility', () => {
 
       activeSigner.status = 'disconnected'
       activeSigner.type = signerType
-      store.newSigner(activeSigner)
+      newSigner(activeSigner)
 
       Accounts.accounts[account.id].signer = undefined
       Accounts.accounts[account.id].lastSignerType = signerType
@@ -783,7 +812,7 @@ describe('#signerCompatibility', () => {
       Accounts.signerCompatibility(request.handlerId, cb)
 
       expect(cb).toHaveBeenCalledWith(new Error('Signer unavailable'))
-      expect(store.navDash).toHaveBeenCalledWith({
+      expect(navDash).toHaveBeenCalledWith({
         data: {
           signer: activeSigner.id
         },
@@ -801,7 +830,7 @@ describe('#signerCompatibility', () => {
 
     Accounts.signerCompatibility(request.handlerId, cb)
 
-    expect(store.navDash).not.toHaveBeenCalled()
+    expect(navDash).not.toHaveBeenCalled()
     expect(cb).toHaveBeenCalledWith(null, compatibility)
   })
 
@@ -812,7 +841,7 @@ describe('#signerCompatibility', () => {
 
     Accounts.signerCompatibility(request.handlerId, cb)
 
-    expect(store.navDash).toHaveBeenCalledWith({
+    expect(navDash).toHaveBeenCalledWith({
       data: {
         signer: activeSigner.id
       },
@@ -837,7 +866,7 @@ describe('#signerCompatibility', () => {
 
     Accounts.signerCompatibility(request.handlerId, cb)
 
-    expect(store.navDash).not.toHaveBeenCalled()
+    expect(navDash).not.toHaveBeenCalled()
     expect(cb).toHaveBeenCalledWith(new Error('No signer'))
   })
 })

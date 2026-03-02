@@ -2,7 +2,7 @@ import { encodeFunctionData, decodeFunctionResult, type Hex } from 'viem'
 import namehash from 'eth-ens-namehash'
 
 import provider from '../provider'
-import store from '../store'
+import state from '../store'
 
 import interfaces from './artifacts/interfaces'
 import registryAddresses from './artifacts/addresses'
@@ -47,7 +47,7 @@ export async function resolveAddress(address: string): Promise<string | null> {
 async function getResolverAddress(name: string): Promise<string | null> {
   const hash = namehash.hash(name)
 
-  const networkId = store('main.currentNetwork.id') as number
+  const networkId = (state.main as any).currentNetwork?.id as number
   const registryAddress = registryAddresses[networkId]
 
   const input = encodeFunctionData({ abi: registryAbi, functionName: 'resolver', args: [hash as Hex] })

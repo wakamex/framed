@@ -1,5 +1,5 @@
 import link from '../resources/link'
-import { useStore } from './store'
+import { initializeState, applyUpdates } from './store'
 import type { Token, AccountRequest } from './types'
 
 // Initialize the renderer: fetch full state from main, subscribe to updates
@@ -11,8 +11,8 @@ export function initializeApp(): Promise<void> {
         return
       }
 
-      // Populate Zustand store with initial state
-      useStore.getState().initialize(state as Parameters<ReturnType<typeof useStore.getState>['initialize']>[0])
+      // Populate valtio proxy with initial state
+      initializeState(state as Parameters<typeof initializeState>[0])
 
       // Listen for incremental state updates from main process
       link.on('action', (action: string, ...args: unknown[]) => {
@@ -25,7 +25,7 @@ export function initializeApp(): Promise<void> {
                 updates.push({ path: update.path, value: update.value })
               }
             }
-            useStore.getState().applyUpdates(updates)
+            applyUpdates(updates)
           } catch (e) {
             console.error('State sync error', e)
           }

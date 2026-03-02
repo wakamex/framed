@@ -3,6 +3,7 @@ import { ipcMain } from 'electron'
 import log from 'electron-log'
 import { randomBytes } from 'crypto'
 import { isAddress } from 'viem'
+import { snapshot } from 'valtio'
 import { openFileDialog } from '../windows/dialog'
 import { openBlockExplorer } from '../windows/window'
 
@@ -10,7 +11,8 @@ import accounts from '../accounts'
 import signers from '../signers'
 import * as launch from '../launch'
 import provider from '../provider'
-import store from '../store'
+import state from '../store'
+import { updateLattice, trustExtension } from '../store/actions'
 import nebulaApi from '../nebula'
 
 import { arraysEqual, randomLetters } from '../../resources/utils'
@@ -30,7 +32,7 @@ const callbackWhenDone = (fn: () => void, cb: RpcCallback) => {
 
 const rpc: Record<string, (...args: any[]) => void> = {
   getState: (cb: RpcCallback) => {
-    cb(null, store())
+    cb(null, snapshot(state))
   },
   signTransaction: accounts.signTransaction,
   signMessage: accounts.signMessage,
@@ -75,7 +77,7 @@ const rpc: Record<string, (...args: any[]) => void> = {
       return cb(new Error('No Device ID'))
     }
 
-    store.updateLattice(deviceId, {
+    updateLattice(deviceId, {
       deviceId,
       baseUrl: 'https://signing.gridpl.us',
       endpointMode: 'default',
@@ -121,7 +123,7 @@ const rpc: Record<string, (...args: any[]) => void> = {
     accounts.confirmRequestApproval(req.handlerId, approvalType as any, approvalData)
   },
   respondToExtensionRequest(id: string, approved: boolean, cb: RpcCallback) {
-    callbackWhenDone(() => store.trustExtension(id, approved), cb)
+    callbackWhenDone(() => trustExtension(id, approved), cb)
   },
   updateRequest(reqId: string, data: any, actionId: string) {
     accounts.updateRequest(reqId, data, actionId as any)
