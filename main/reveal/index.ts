@@ -6,7 +6,7 @@ import { addHexPrefix } from '@ethereumjs/util'
 import BigNumber from 'bignumber.js'
 
 import proxyConnection from '../provider/proxy'
-import nebulaApi from '../nebula'
+import { resolveAddress } from '../ens'
 
 import Erc20Contract from '../contracts/erc20'
 import { decodeCallData, fetchContract, ContractSource } from '../contracts'
@@ -26,7 +26,6 @@ const knownContracts: DecodableContract<unknown>[] = [...ensContracts]
 
 const erc20Abi = JSON.stringify(erc20)
 
-const nebula = nebulaApi()
 const provider = new EthereumProvider(proxyConnection)
 
 // TODO: Discuss the need to set chain for the proxy connection
@@ -60,8 +59,8 @@ async function resolveEntityType(address: string, chainId: number): Promise<Enti
 
 async function resolveEnsName(address: string): Promise<string> {
   try {
-    const ensName: string = (await nebula.ens.reverseLookup([address]))[0]
-    return ensName
+    const ensName = await resolveAddress(address)
+    return ensName || ''
   } catch (e) {
     log.warn(e)
     return ''

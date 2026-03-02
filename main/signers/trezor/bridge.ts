@@ -22,7 +22,7 @@ export class DeviceError extends Error {
   }
 }
 
-const manifest = { email: 'dev@frame.sh', appUrl: 'https://frame.sh' }
+const manifest = { email: 'mcosma@gmail.com', appUrl: 'https://github.com/wakamex/framed' }
 
 const config = {
   manifest,

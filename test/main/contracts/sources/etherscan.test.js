@@ -1,6 +1,16 @@
 import log from 'electron-log'
 import nock from 'nock'
 
+jest.mock('../../../../main/store', () => ({
+  main: {
+    apiKeys: {
+      etherscan: 'test-etherscan-key',
+      polygonscan: 'test-polygonscan-key',
+      arbiscan: 'test-arbiscan-key'
+    }
+  }
+}))
+
 import { fetchEtherscanContract } from '../../../../main/contracts/sources/etherscan'
 
 function mockApiResponse(
@@ -53,20 +63,14 @@ describe('#fetchEtherscanContract', () => {
     `/api?module=contract&action=getsourcecode&address=${contractAddress}&apikey=${apiKey}`
 
   const mockEtherscanApi = (status, response, timeout) => {
-    return mockApiResponse(
-      'api.etherscan.io',
-      getPath('3SYU5MW5QK8RPCJV1XVICHWKT774993S24'),
-      status,
-      response,
-      timeout
-    )
+    return mockApiResponse('api.etherscan.io', getPath('test-etherscan-key'), status, response, timeout)
   }
 
   const chains = [
-    { chainId: 1, domain: 'api.etherscan.io', apiKey: '3SYU5MW5QK8RPCJV1XVICHWKT774993S24' },
-    { chainId: 137, domain: 'api.polygonscan.com', apiKey: '2P3U9T63MT26T1X64AAE368UNTS9RKEEBB' },
-    { chainId: 10, domain: 'api-optimistic.etherscan.io', apiKey: '3SYU5MW5QK8RPCJV1XVICHWKT774993S24' },
-    { chainId: 42161, domain: 'api.arbiscan.io', apiKey: 'VP126CP67QVH9ZEKAZT1UZ751VZ6ZTIZAD' }
+    { chainId: 1, domain: 'api.etherscan.io', apiKey: 'test-etherscan-key' },
+    { chainId: 137, domain: 'api.polygonscan.com', apiKey: 'test-polygonscan-key' },
+    { chainId: 10, domain: 'api-optimistic.etherscan.io', apiKey: 'test-etherscan-key' },
+    { chainId: 42161, domain: 'api.arbiscan.io', apiKey: 'test-arbiscan-key' }
   ]
 
   chains.forEach((chain) => {

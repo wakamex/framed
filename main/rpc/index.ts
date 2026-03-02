@@ -14,7 +14,7 @@ import provider from '../provider'
 import state from '../store'
 import { updateLattice, trustExtension, addTxRecord } from '../store/actions'
 import txTracker from '../txHistory'
-import nebulaApi from '../nebula'
+import { resolveName } from '../ens'
 
 import { arraysEqual, randomLetters } from '../../resources/utils'
 import { isSignatureRequest } from '../signatures'
@@ -241,13 +241,9 @@ const rpc: Record<string, (...args: any[]) => void> = {
   async resolveEnsName(name: string, cb: RpcCallback) {
     log.debug('Resolving ENS name', { name })
 
-    const nebula = nebulaApi()
-
     try {
-      const {
-        addresses: { eth: ethAddress }
-      } = await nebula.ens.resolve(name, { timeout: 8000 })
-      cb(null, ethAddress)
+      const address = await resolveName(name)
+      cb(null, address)
     } catch (err) {
       log.warn(`Could not resolve ENS name ${name}:`, err)
       return cb(err)

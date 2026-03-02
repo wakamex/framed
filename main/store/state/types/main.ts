@@ -47,9 +47,18 @@ const notificationTypes = z.enum([
   'signerCompatibilityWarning'
 ])
 
+const ApiKeysSchema = z
+  .object({
+    etherscan: z.string(),
+    polygonscan: z.string(),
+    arbiscan: z.string()
+  })
+  .default({ etherscan: '', polygonscan: '', arbiscan: '' })
+
 export const MainSchema = z.object({
   _version: z.coerce.number(),
   instanceId: z.string(), // TODO: uuid
+  apiKeys: ApiKeysSchema,
   networks: z.object({
     ethereum: z.record(z.coerce.number(), ChainSchema)
   }),

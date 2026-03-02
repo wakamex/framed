@@ -96,8 +96,9 @@ type M = Main & {
 }
 
 const mainState: M = {
-  _version: main('_version', 45),
+  _version: main('_version', 46),
   instanceId: main('instanceId', generateUuid()),
+  apiKeys: main('apiKeys', { etherscan: '', polygonscan: '', arbiscan: '' }),
   colorway: main('colorway', 'dark'),
   colorwayPrimary: {
     dark: {
@@ -533,7 +534,7 @@ const mainState: M = {
           symbol: 'ETH',
           decimals: 18
         },
-        icon: 'https://frame.nyc3.cdn.digitaloceanspaces.com/icons/optimism.svg',
+        icon: '',
         primaryColor: 'accent4' // Optimism
       },
       100: {
@@ -555,7 +556,7 @@ const mainState: M = {
           name: 'xDAI',
           decimals: 18
         },
-        icon: 'https://frame.nyc3.cdn.digitaloceanspaces.com/icons/gnosis.svg',
+        icon: '',
         primaryColor: 'accent5' // Gnosis
       },
       137: {
@@ -577,7 +578,7 @@ const mainState: M = {
           name: 'Matic',
           decimals: 18
         },
-        icon: 'https://frame.nyc3.cdn.digitaloceanspaces.com/icons/polygon.svg',
+        icon: '',
         primaryColor: 'accent6' // Polygon
       },
       8453: {
@@ -599,7 +600,7 @@ const mainState: M = {
           name: 'Ether',
           decimals: 18
         },
-        icon: 'https://frame.nyc3.cdn.digitaloceanspaces.com/baseiconcolor.png',
+        icon: '',
         primaryColor: 'accent8' // Base
       },
       42161: {
@@ -621,7 +622,7 @@ const mainState: M = {
           symbol: 'ETH',
           decimals: 18
         },
-        icon: 'https://frame.nyc3.cdn.digitaloceanspaces.com/icons/arbitrum.svg',
+        icon: '',
         primaryColor: 'accent7' // Arbitrum
       },
       84532: {
@@ -643,7 +644,7 @@ const mainState: M = {
           name: 'Base Sepolia Ether',
           decimals: 18
         },
-        icon: 'https://frame.nyc3.cdn.digitaloceanspaces.com/baseiconcolor.png',
+        icon: '',
         primaryColor: 'accent2' // Testnet
       },
       11155111: {

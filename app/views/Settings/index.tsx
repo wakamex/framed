@@ -107,6 +107,31 @@ export default function SettingsView() {
         />
       </Section>
 
+      {/* API Keys */}
+      <Section title="API Keys">
+        <p className="text-xs text-gray-500 mb-2">
+          Optional keys for contract source lookups. Works without keys at reduced rate limits.
+        </p>
+        <TextRow
+          label="Etherscan"
+          placeholder="API key"
+          value={main.apiKeys?.etherscan ?? ''}
+          onChange={(v) => actions.syncPath('main.apiKeys.etherscan', v)}
+        />
+        <TextRow
+          label="Polygonscan"
+          placeholder="API key"
+          value={main.apiKeys?.polygonscan ?? ''}
+          onChange={(v) => actions.syncPath('main.apiKeys.polygonscan', v)}
+        />
+        <TextRow
+          label="Arbiscan"
+          placeholder="API key"
+          value={main.apiKeys?.arbiscan ?? ''}
+          onChange={(v) => actions.syncPath('main.apiKeys.arbiscan', v)}
+        />
+      </Section>
+
       {/* Gas Alerts */}
       <GasAlertsSection />
 
@@ -197,6 +222,23 @@ function NumberRow({ label, value, min, max, onChange }: {
         max={max}
         onChange={(e) => onChange(parseInt(e.target.value) || min)}
         className="w-16 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none text-center"
+      />
+    </div>
+  )
+}
+
+function TextRow({ label, placeholder, value, onChange }: {
+  label: string; placeholder?: string; value: string; onChange: (v: string) => void
+}) {
+  return (
+    <div className="flex items-center justify-between py-2">
+      <div className="text-sm text-gray-200">{label}</div>
+      <input
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-48 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none font-mono"
       />
     </div>
   )

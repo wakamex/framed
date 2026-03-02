@@ -48,9 +48,9 @@ jest.mock('../../../main/transaction')
 
 jest.mock('../../../main/store/persist')
 
-jest.mock('../../../main/nebula', () =>
-  jest.fn(() => ({ ready: () => true, ens: { lookupAddress: jest.fn() } }))
-)
+jest.mock('../../../main/ens', () => ({
+  resolveAddress: jest.fn().mockResolvedValue('')
+}))
 
 const account = {
   id: '0x22dd63c3619818fdbc262c78baee43cb61e9cccf',

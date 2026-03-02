@@ -1,5 +1,6 @@
 import log from 'electron-log'
 
+import state from '../../store'
 import { fetchWithTimeout } from '../../../resources/utils/fetch'
 
 import type { Response } from 'node-fetch'
@@ -24,15 +25,22 @@ const getEndpoint = (domain: string, contractAddress: string, apiKey: string) =>
   return `https://${domain}/api?module=contract&action=getsourcecode&address=${contractAddress}&apikey=${apiKey}`
 }
 
+function getApiKeys() {
+  const keys = (state.main as any).apiKeys || {}
+  return {
+    etherscan: keys.etherscan || '',
+    polygonscan: keys.polygonscan || '',
+    arbiscan: keys.arbiscan || ''
+  }
+}
+
 const endpointMap = {
-  1: (contractAddress: Address) =>
-    getEndpoint('api.etherscan.io', contractAddress, '3SYU5MW5QK8RPCJV1XVICHWKT774993S24'),
+  1: (contractAddress: Address) => getEndpoint('api.etherscan.io', contractAddress, getApiKeys().etherscan),
   10: (contractAddress: Address) =>
-    getEndpoint('api-optimistic.etherscan.io', contractAddress, '3SYU5MW5QK8RPCJV1XVICHWKT774993S24'),
+    getEndpoint('api-optimistic.etherscan.io', contractAddress, getApiKeys().etherscan),
   137: (contractAddress: Address) =>
-    getEndpoint('api.polygonscan.com', contractAddress, '2P3U9T63MT26T1X64AAE368UNTS9RKEEBB'),
-  42161: (contractAddress: Address) =>
-    getEndpoint('api.arbiscan.io', contractAddress, 'VP126CP67QVH9ZEKAZT1UZ751VZ6ZTIZAD')
+    getEndpoint('api.polygonscan.com', contractAddress, getApiKeys().polygonscan),
+  42161: (contractAddress: Address) => getEndpoint('api.arbiscan.io', contractAddress, getApiKeys().arbiscan)
 }
 
 async function parseResponse<T>(response: Response): Promise<T | undefined> {

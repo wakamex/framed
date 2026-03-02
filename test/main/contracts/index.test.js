@@ -3,6 +3,9 @@ import { fetchContract } from '../../../main/contracts'
 import { fetchSourcifyContract } from '../../../main/contracts/sources/sourcify'
 import { fetchEtherscanContract } from '../../../main/contracts/sources/etherscan'
 
+jest.mock('../../../main/store', () => ({
+  main: { apiKeys: { etherscan: '', polygonscan: '', arbiscan: '' } }
+}))
 jest.mock('../../../main/contracts/sources/sourcify')
 jest.mock('../../../main/contracts/sources/etherscan')
 

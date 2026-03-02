@@ -20,6 +20,7 @@ import type {
 export interface MainState {
   _version: number
   instanceId: string
+  apiKeys: { etherscan: string; polygonscan: string; arbiscan: string }
   colorway: 'light' | 'dark'
   launch: boolean
   reveal: boolean

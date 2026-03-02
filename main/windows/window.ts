@@ -42,21 +42,18 @@ export function createWindow(
 }
 
 const externalWhitelist = [
-  'https://frame.sh',
   'https://chrome.google.com/webstore/detail/frame-alpha/ldcoohedfbjoobcadoglnnmmfbdlmmhf',
   'https://addons.mozilla.org/en-US/firefox/addon/frame-extension',
-  'https://github.com/floating/frame/issues/new',
-  'https://github.com/floating/frame/blob/master/LICENSE',
-  'https://github.com/floating/frame/blob/0.5/LICENSE',
+  'https://github.com/wakamex/framed/issues/new',
+  'https://github.com/wakamex/framed/blob/master/LICENSE',
+  'https://github.com/wakamex/framed/blob/0.5/LICENSE',
   'https://shop.ledger.com/pages/ledger-nano-x?r=1fb484cde64f',
   'https://shop.trezor.io/?offer_id=10&aff_id=3270',
   'https://discord.gg/UH7NGqY',
-  'https://frame.canny.io',
-  'https://feedback.frame.sh',
   'https://opensea.io'
 ]
 
-const isValidReleasePage = (url: string) => url.startsWith('https://github.com/floating/frame/releases/tag/')
+const isValidReleasePage = (url: string) => url.startsWith('https://github.com/wakamex/framed/releases/tag/')
 const isWhitelistedHost = (url: string) =>
   externalWhitelist.some((entry) => url === entry || url.startsWith(entry + '/'))
 

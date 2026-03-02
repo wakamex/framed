@@ -10,7 +10,7 @@ import {
   TransactionRequest
 } from '..'
 import { subscribe } from 'valtio'
-import nebulaApi from '../../nebula'
+import { resolveAddress } from '../../ens'
 import signers from '../../signers'
 import windows from '../../windows'
 import state from '../../store'
@@ -27,8 +27,6 @@ import Erc20Contract from '../../contracts/erc20'
 
 import type { PermitSignatureRequest, TypedMessage } from '../types'
 import type { Permission } from '../../store/state'
-
-const nebula = nebulaApi()
 
 interface SignerOptions {
   type?: string
@@ -128,18 +126,14 @@ class FrameAccount {
       })
     }
 
-    if (nebula.ready()) {
-      this.lookupAddress() // We need to recheck this on every network change...
-    } else {
-      nebula.once('ready', this.lookupAddress.bind(this))
-    }
+    this.lookupAddress()
 
     this.update()
   }
 
   async lookupAddress() {
     try {
-      this.ensName = (await nebula.ens.reverseLookup(this.address))[0]
+      this.ensName = (await resolveAddress(this.address)) || ''
       this.update()
     } catch (e) {
       log.error('lookupAddress Error:', e)

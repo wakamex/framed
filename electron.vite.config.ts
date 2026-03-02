@@ -25,7 +25,6 @@ const mainExternals = [
   'ethereum-provider',
   'eth-provider',
   'eth-ens-namehash',
-  'nebula',
   '@ledgerhq/hw-transport-node-hid-singleton',
   '@ledgerhq/hw-transport-node-hid-noevents',
   '@ledgerhq/hw-transport',
