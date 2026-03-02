@@ -458,7 +458,7 @@ class ChainConnection extends EventEmitter {
   connect(chain: any) {
     const connection = chain.connection
 
-    log.info(this.type + ':' + this.chainId + "'s connection has been updated")
+    log.verbose(this.type + ':' + this.chainId + "'s connection has been updated")
 
     if (this.network !== connection.network) {
       this.killProvider(this.primary.provider)

@@ -29,7 +29,7 @@ function register(shortcut: Shortcut, shortcutHandler: (accelerator: string) => 
   try {
     if (shortcut.enabled && !shortcut.configuring) {
       globalShortcut.register(accelerator, () => shortcutHandler(accelerator))
-      log.info(`Accelerator "${accelerator}" registered for shortcut: ${shortcutString}`)
+      log.verbose(`Accelerator "${accelerator}" registered for shortcut: ${shortcutString}`)
     }
   } catch (e) {
     log.error(`Failed to register accelerator "${accelerator}" for shortcut: ${shortcutString}`, e)

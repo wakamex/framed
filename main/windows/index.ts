@@ -42,9 +42,10 @@ const systemTray = new SystemTray(systemTrayEventHandlers)
 
 function initMainWindow() {
   const rendererUrl = process.env['ELECTRON_RENDERER_URL']
-  const url = isDev && rendererUrl
-    ? `${rendererUrl}/index.html`
-    : new URL(path.join(process.env.BUNDLE_LOCATION, 'index.html'), 'file:')
+  const url =
+    isDev && rendererUrl
+      ? `${rendererUrl}/index.html`
+      : new URL(path.join(process.env.BUNDLE_LOCATION, 'index.html'), 'file:')
 
   mainWindow = createWindow('main', {
     width: 960,
@@ -60,9 +61,7 @@ function initMainWindow() {
     mainWindow = null
   })
 
-  mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, res) =>
-    res(false)
-  )
+  mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, res) => res(false))
 
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show()
@@ -110,19 +109,23 @@ const init = () => {
     }
   })
 
-  // Observe summon shortcut changes
-  subscribe(state, () => {
-    const summonShortcut: Shortcut = state.main.shortcuts.summon as Shortcut
-    const summonHandler = () => {
-      if (mainWindow) {
-        if (mainWindow.isVisible()) {
-          mainWindow.hide()
-        } else {
-          mainWindow.show()
-          mainWindow.focus()
-        }
+  // Register summon shortcut, re-register only when it changes
+  const summonHandler = () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide()
+      } else {
+        mainWindow.show()
+        mainWindow.focus()
       }
     }
+  }
+  let lastShortcutJson = ''
+  subscribe(state.main.shortcuts, () => {
+    const summonShortcut: Shortcut = state.main.shortcuts.summon as Shortcut
+    const json = JSON.stringify(summonShortcut)
+    if (json === lastShortcutJson) return
+    lastShortcutJson = json
     registerShortcut(summonShortcut, summonHandler)
   })
 }
