@@ -95,7 +95,7 @@ type M = Main & {
 }
 
 const mainState: M = {
-  _version: main('_version', 43),
+  _version: main('_version', 42),
   instanceId: main('instanceId', generateUuid()),
   colorway: main('colorway', 'dark'),
   colorwayPrimary: {
@@ -157,7 +157,6 @@ const mainState: M = {
   accounts: main('accounts', {}),
   accountsMeta: main('accountsMeta', {}),
   addresses: main('addresses', {}), // Should be removed after 0.5 release
-  addressBook: main('addressBook', {}),
   permissions: main('permissions', {}),
   balances: {},
   tokens: main('tokens', { custom: [], known: {} }),
