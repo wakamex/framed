@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/electron'
+import * as Sentry from '@sentry/electron/renderer'
 import { createRoot } from 'react-dom/client'
 import Restore from 'react-restore'
 
