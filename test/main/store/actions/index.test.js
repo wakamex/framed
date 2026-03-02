@@ -28,7 +28,32 @@ import {
   updateAccount as updateAccountAction,
   navClearReq as clearNavRequestAction,
   navClearSigner as clearNavSignerAction,
-  updateTypedDataRequest as updateTypedDataAction
+  updateTypedDataRequest as updateTypedDataAction,
+  syncPath as syncPathAction,
+  setPermission as setPermissionAction,
+  clearPermissions as clearPermissionsAction,
+  toggleAccess as toggleAccessAction,
+  trustExtension as trustExtensionAction,
+  setGasAlert as setGasAlertAction,
+  removeGasAlert as removeGasAlertAction,
+  toggleGasAlert as toggleGasAlertAction,
+  addContact as addContactAction,
+  updateContact as updateContactAction,
+  removeContact as removeContactAction,
+  addTxRecord as addTxRecordAction,
+  updateTxStatus as updateTxStatusAction,
+  clearTxHistory as clearTxHistoryAction,
+  selectPrimary as selectPrimaryAction,
+  selectSecondary as selectSecondaryAction,
+  setPrimaryCustom as setPrimaryCustomAction,
+  setSecondaryCustom as setSecondaryCustomAction,
+  toggleConnection as toggleConnectionAction,
+  setPrimary as setPrimaryAction,
+  setSecondary as setSecondaryAction,
+  setGasFees as setGasFeesAction,
+  setGasPrices as setGasPricesAction,
+  setGasDefault as setGasDefaultAction,
+  setChainColor as setChainColorAction
 } from '../../../../main/store/actions'
 import { toTokenId } from '../../../../resources/domain/balance'
 
@@ -1179,5 +1204,759 @@ describe('#updateTypedDataRequest', () => {
     })
 
     expect(state.main.accounts[owner].requests[request].typedMessage.data.oldAttribute).toBeTruthy()
+  })
+})
+
+// ---- New test blocks ----
+
+describe('#syncPath', () => {
+  it('sets a top-level value at the given path', () => {
+    syncPathAction('panel.accountFilter', 'testFilter')
+
+    expect(state.panel.accountFilter).toBe('testFilter')
+  })
+
+  it('sets a nested value at the given path', () => {
+    syncPathAction('selected.view', 'accounts')
+
+    expect(state.selected.view).toBe('accounts')
+  })
+
+  it('creates intermediate objects if path does not exist', () => {
+    syncPathAction('customKey.nested.deep', 42)
+
+    expect(state.customKey.nested.deep).toBe(42)
+  })
+
+  it('does not set paths starting with "main"', () => {
+    const before = state.main.launch
+    syncPathAction('main.launch', !before)
+
+    expect(state.main.launch).toBe(before)
+  })
+
+  it('does not set anything for empty path', () => {
+    syncPathAction('', 'value')
+
+    // no error thrown and state unchanged
+    expect(state.panel.accountFilter).toBe('')
+  })
+
+  it('does not set anything for wildcard path', () => {
+    syncPathAction('*', 'value')
+
+    expect(state['*']).toBeUndefined()
+  })
+})
+
+describe('#setPermission', () => {
+  const address = '0xabc123'
+  const permission = { handlerId: 'frame.test', provider: true }
+
+  beforeEach(() => {
+    state.main.permissions = {}
+  })
+
+  it('adds a permission for an address and origin', () => {
+    setPermissionAction(address, permission)
+
+    expect(state.main.permissions[address]['frame.test']).toEqual(permission)
+  })
+
+  it('creates the address entry if it does not exist', () => {
+    setPermissionAction(address, permission)
+
+    expect(state.main.permissions[address]).toBeDefined()
+  })
+
+  it('can store multiple permissions for the same address', () => {
+    const perm2 = { handlerId: 'other.origin', provider: false }
+    setPermissionAction(address, permission)
+    setPermissionAction(address, perm2)
+
+    expect(Object.keys(state.main.permissions[address])).toHaveLength(2)
+  })
+})
+
+describe('#clearPermissions', () => {
+  const address = '0xabc123'
+
+  beforeEach(() => {
+    state.main.permissions = {
+      [address]: {
+        'frame.test': { handlerId: 'frame.test', provider: true },
+        'other.origin': { handlerId: 'other.origin', provider: false }
+      }
+    }
+  })
+
+  it('removes all permissions for the address', () => {
+    clearPermissionsAction(address)
+
+    expect(state.main.permissions[address]).toEqual({})
+  })
+
+  it('does not affect permissions for other addresses', () => {
+    const other = '0xdef456'
+    state.main.permissions[other] = { 'frame.test': { handlerId: 'frame.test', provider: true } }
+
+    clearPermissionsAction(address)
+
+    expect(state.main.permissions[other]).toBeDefined()
+    expect(Object.keys(state.main.permissions[other])).toHaveLength(1)
+  })
+})
+
+describe('#toggleAccess', () => {
+  const address = '0xabc123'
+  const handlerId = 'frame.test'
+
+  beforeEach(() => {
+    state.main.permissions = {
+      [address]: {
+        [handlerId]: { handlerId, provider: true }
+      }
+    }
+  })
+
+  it('flips provider from true to false', () => {
+    toggleAccessAction(address, handlerId)
+
+    expect(state.main.permissions[address][handlerId].provider).toBe(false)
+  })
+
+  it('flips provider from false to true', () => {
+    state.main.permissions[address][handlerId].provider = false
+    toggleAccessAction(address, handlerId)
+
+    expect(state.main.permissions[address][handlerId].provider).toBe(true)
+  })
+
+  it('does nothing if address has no permissions', () => {
+    toggleAccessAction('0xnonexistent', handlerId)
+
+    // should not throw
+    expect(state.main.permissions['0xnonexistent']).toBeUndefined()
+  })
+
+  it('does nothing if handlerId does not exist', () => {
+    toggleAccessAction(address, 'nonexistent.origin')
+
+    // original entry unchanged
+    expect(state.main.permissions[address][handlerId].provider).toBe(true)
+  })
+})
+
+describe('#trustExtension', () => {
+  beforeEach(() => {
+    state.main.knownExtensions = {}
+  })
+
+  it('marks an extension as trusted', () => {
+    trustExtensionAction('ext-id-1', true)
+
+    expect(state.main.knownExtensions['ext-id-1']).toBe(true)
+  })
+
+  it('marks an extension as untrusted', () => {
+    trustExtensionAction('ext-id-1', false)
+
+    expect(state.main.knownExtensions['ext-id-1']).toBe(false)
+  })
+
+  it('can update trust status', () => {
+    trustExtensionAction('ext-id-1', true)
+    trustExtensionAction('ext-id-1', false)
+
+    expect(state.main.knownExtensions['ext-id-1']).toBe(false)
+  })
+})
+
+describe('#setGasAlert', () => {
+  beforeEach(() => {
+    state.main.gasAlerts = {}
+  })
+
+  it('creates a gas alert with threshold and enabled flag', () => {
+    setGasAlertAction('1', 50, true)
+
+    expect(state.main.gasAlerts['1']).toEqual({ threshold: 50, enabled: true, unit: 'gwei' })
+  })
+
+  it('creates a disabled gas alert', () => {
+    setGasAlertAction('1', 100, false)
+
+    expect(state.main.gasAlerts['1']).toEqual({ threshold: 100, enabled: false, unit: 'gwei' })
+  })
+
+  it('overwrites an existing alert', () => {
+    setGasAlertAction('1', 50, true)
+    setGasAlertAction('1', 75, false)
+
+    expect(state.main.gasAlerts['1']).toEqual({ threshold: 75, enabled: false, unit: 'gwei' })
+  })
+})
+
+describe('#toggleGasAlert', () => {
+  beforeEach(() => {
+    state.main.gasAlerts = {
+      '1': { threshold: 50, enabled: true, unit: 'gwei' }
+    }
+  })
+
+  it('flips enabled from true to false', () => {
+    toggleGasAlertAction('1')
+
+    expect(state.main.gasAlerts['1'].enabled).toBe(false)
+  })
+
+  it('flips enabled from false to true', () => {
+    state.main.gasAlerts['1'].enabled = false
+    toggleGasAlertAction('1')
+
+    expect(state.main.gasAlerts['1'].enabled).toBe(true)
+  })
+
+  it('does not change threshold when toggling', () => {
+    toggleGasAlertAction('1')
+
+    expect(state.main.gasAlerts['1'].threshold).toBe(50)
+  })
+
+  it('does nothing if the alert does not exist', () => {
+    toggleGasAlertAction('999')
+
+    expect(state.main.gasAlerts['999']).toBeUndefined()
+  })
+})
+
+describe('#removeGasAlert', () => {
+  beforeEach(() => {
+    state.main.gasAlerts = {
+      '1': { threshold: 50, enabled: true, unit: 'gwei' },
+      '137': { threshold: 30, enabled: false, unit: 'gwei' }
+    }
+  })
+
+  it('deletes the alert for the given chain', () => {
+    removeGasAlertAction('1')
+
+    expect(state.main.gasAlerts['1']).toBeUndefined()
+  })
+
+  it('does not affect alerts for other chains', () => {
+    removeGasAlertAction('1')
+
+    expect(state.main.gasAlerts['137']).toBeDefined()
+  })
+})
+
+describe('#addContact', () => {
+  beforeEach(() => {
+    state.main.addressBook = {}
+    jest.setSystemTime(new Date('2024-01-01'))
+  })
+
+  it('adds an entry with address and name', () => {
+    addContactAction({ address: '0xabc', name: 'Alice' })
+
+    const entries = Object.values(state.main.addressBook)
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({ address: '0xabc', name: 'Alice', notes: '' })
+  })
+
+  it('adds an entry with notes', () => {
+    addContactAction({ address: '0xabc', name: 'Alice', notes: 'My friend' })
+
+    const entries = Object.values(state.main.addressBook)
+    expect(entries[0].notes).toBe('My friend')
+  })
+
+  it('uses empty string for notes when not provided', () => {
+    addContactAction({ address: '0xabc', name: 'Alice' })
+
+    const entries = Object.values(state.main.addressBook)
+    expect(entries[0].notes).toBe('')
+  })
+
+  it('assigns a unique id to each contact', () => {
+    addContactAction({ address: '0xabc', name: 'Alice' })
+    addContactAction({ address: '0xdef', name: 'Bob' })
+
+    const ids = Object.keys(state.main.addressBook)
+    expect(ids).toHaveLength(2)
+    expect(ids[0]).not.toBe(ids[1])
+  })
+
+  it('records createdAt timestamp', () => {
+    addContactAction({ address: '0xabc', name: 'Alice' })
+
+    const entries = Object.values(state.main.addressBook)
+    expect(entries[0].createdAt).toBe(new Date('2024-01-01').getTime())
+  })
+})
+
+describe('#updateContact', () => {
+  const contactId = 'test-contact-id'
+
+  beforeEach(() => {
+    state.main.addressBook = {
+      [contactId]: { address: '0xabc', name: 'Alice', notes: 'original note', createdAt: 1000 }
+    }
+  })
+
+  it('updates the name of an existing contact', () => {
+    updateContactAction(contactId, { name: 'Alicia' })
+
+    expect(state.main.addressBook[contactId].name).toBe('Alicia')
+  })
+
+  it('updates the address of an existing contact', () => {
+    updateContactAction(contactId, { address: '0xnew' })
+
+    expect(state.main.addressBook[contactId].address).toBe('0xnew')
+  })
+
+  it('updates the notes of an existing contact', () => {
+    updateContactAction(contactId, { notes: 'new note' })
+
+    expect(state.main.addressBook[contactId].notes).toBe('new note')
+  })
+
+  it('only updates specified fields', () => {
+    updateContactAction(contactId, { name: 'Alicia' })
+
+    expect(state.main.addressBook[contactId].address).toBe('0xabc')
+    expect(state.main.addressBook[contactId].notes).toBe('original note')
+  })
+
+  it('does nothing if contact does not exist', () => {
+    updateContactAction('nonexistent-id', { name: 'Ghost' })
+
+    expect(state.main.addressBook['nonexistent-id']).toBeUndefined()
+  })
+})
+
+describe('#removeContact', () => {
+  const contactId = 'test-contact-id'
+
+  beforeEach(() => {
+    state.main.addressBook = {
+      [contactId]: { address: '0xabc', name: 'Alice', notes: '', createdAt: 1000 },
+      'other-id': { address: '0xdef', name: 'Bob', notes: '', createdAt: 2000 }
+    }
+  })
+
+  it('deletes the contact by id', () => {
+    removeContactAction(contactId)
+
+    expect(state.main.addressBook[contactId]).toBeUndefined()
+  })
+
+  it('does not affect other contacts', () => {
+    removeContactAction(contactId)
+
+    expect(state.main.addressBook['other-id']).toBeDefined()
+  })
+})
+
+describe('#addTxRecord', () => {
+  const address = '0xUserAddress'
+
+  beforeEach(() => {
+    state.main.txHistory = {}
+  })
+
+  it('adds a transaction record to history', () => {
+    const record = { hash: '0xhash1', status: 'pending' }
+    addTxRecordAction(address, record)
+
+    expect(state.main.txHistory[address.toLowerCase()]).toHaveLength(1)
+    expect(state.main.txHistory[address.toLowerCase()][0]).toEqual(record)
+  })
+
+  it('prepends new records (most recent first)', () => {
+    const record1 = { hash: '0xhash1', status: 'confirmed' }
+    const record2 = { hash: '0xhash2', status: 'pending' }
+    addTxRecordAction(address, record1)
+    addTxRecordAction(address, record2)
+
+    expect(state.main.txHistory[address.toLowerCase()][0]).toEqual(record2)
+    expect(state.main.txHistory[address.toLowerCase()][1]).toEqual(record1)
+  })
+
+  it('normalizes address to lowercase', () => {
+    const record = { hash: '0xhash1', status: 'pending' }
+    addTxRecordAction('0xUSERADDRESS', record)
+
+    expect(state.main.txHistory['0xuseraddress']).toHaveLength(1)
+  })
+
+  it('creates the history array if it does not exist', () => {
+    const record = { hash: '0xhash1', status: 'pending' }
+    addTxRecordAction('0xnew', record)
+
+    expect(state.main.txHistory['0xnew']).toEqual([record])
+  })
+})
+
+describe('#updateTxStatus', () => {
+  const address = '0xUserAddress'
+  const hash = '0xhash1'
+
+  beforeEach(() => {
+    state.main.txHistory = {
+      [address.toLowerCase()]: [
+        { hash, status: 'pending' },
+        { hash: '0xhash2', status: 'pending' }
+      ]
+    }
+  })
+
+  it('updates the status of a matching transaction', () => {
+    updateTxStatusAction(address, hash, 'confirmed')
+
+    expect(state.main.txHistory[address.toLowerCase()][0].status).toBe('confirmed')
+  })
+
+  it('does not change other transactions', () => {
+    updateTxStatusAction(address, hash, 'confirmed')
+
+    expect(state.main.txHistory[address.toLowerCase()][1].status).toBe('pending')
+  })
+
+  it('sets receipt fields when receipt is provided', () => {
+    const receipt = { gasUsed: '21000', blockNumber: 500 }
+    updateTxStatusAction(address, hash, 'confirmed', receipt)
+
+    const record = state.main.txHistory[address.toLowerCase()][0]
+    expect(record.gasUsed).toBe('21000')
+    expect(record.blockNumber).toBe(500)
+    expect(record.confirmedAt).toBeDefined()
+  })
+
+  it('does nothing if address has no history', () => {
+    updateTxStatusAction('0xunknown', hash, 'confirmed')
+
+    // should not throw
+    expect(state.main.txHistory['0xunknown']).toBeUndefined()
+  })
+
+  it('does nothing if hash is not found', () => {
+    updateTxStatusAction(address, '0xnotfound', 'confirmed')
+
+    expect(state.main.txHistory[address.toLowerCase()][0].status).toBe('pending')
+  })
+})
+
+describe('#clearTxHistory', () => {
+  const address = '0xUserAddress'
+
+  beforeEach(() => {
+    state.main.txHistory = {
+      [address.toLowerCase()]: [
+        { hash: '0xhash1', status: 'confirmed' },
+        { hash: '0xhash2', status: 'pending' }
+      ]
+    }
+  })
+
+  it('empties the history for the given address', () => {
+    clearTxHistoryAction(address)
+
+    expect(state.main.txHistory[address.toLowerCase()]).toEqual([])
+  })
+
+  it('normalizes address to lowercase', () => {
+    clearTxHistoryAction('0xUSERADDRESS')
+
+    expect(state.main.txHistory['0xuseraddress']).toEqual([])
+  })
+})
+
+describe('#selectPrimary', () => {
+  beforeEach(() => {
+    state.main.networks = {
+      ethereum: {
+        1: {
+          connection: {
+            primary: { on: true, current: 'infura', status: 'connected', connected: true, type: '', network: '', custom: '' },
+            secondary: { on: false, current: 'custom', status: 'loading', connected: false, type: '', network: '', custom: '' }
+          }
+        }
+      }
+    }
+  })
+
+  it('updates the primary connection preset', () => {
+    selectPrimaryAction('ethereum', '1', 'alchemy')
+
+    expect(state.main.networks.ethereum[1].connection.primary.current).toBe('alchemy')
+  })
+})
+
+describe('#selectSecondary', () => {
+  beforeEach(() => {
+    state.main.networks = {
+      ethereum: {
+        1: {
+          connection: {
+            primary: { on: true, current: 'infura', status: 'connected', connected: true, type: '', network: '', custom: '' },
+            secondary: { on: false, current: 'custom', status: 'loading', connected: false, type: '', network: '', custom: '' }
+          }
+        }
+      }
+    }
+  })
+
+  it('updates the secondary connection preset', () => {
+    selectSecondaryAction('ethereum', '1', 'alchemy')
+
+    expect(state.main.networks.ethereum[1].connection.secondary.current).toBe('alchemy')
+  })
+})
+
+describe('#setPrimaryCustom', () => {
+  beforeEach(() => {
+    state.main.networks = {
+      ethereum: {
+        1: {
+          connection: {
+            primary: { on: true, current: 'custom', status: 'loading', connected: false, type: '', network: '', custom: '' },
+            secondary: { on: false, current: 'custom', status: 'loading', connected: false, type: '', network: '', custom: '' }
+          }
+        }
+      }
+    }
+  })
+
+  it('sets the custom primary RPC URL', () => {
+    setPrimaryCustomAction('ethereum', '1', 'https://my-node.com')
+
+    expect(state.main.networks.ethereum[1].connection.primary.custom).toBe('https://my-node.com')
+  })
+
+  it('does nothing if netType is falsy', () => {
+    setPrimaryCustomAction('', '1', 'https://my-node.com')
+
+    expect(state.main.networks.ethereum[1].connection.primary.custom).toBe('')
+  })
+
+  it('does nothing if netId is falsy', () => {
+    setPrimaryCustomAction('ethereum', '', 'https://my-node.com')
+
+    expect(state.main.networks.ethereum[1].connection.primary.custom).toBe('')
+  })
+})
+
+describe('#setSecondaryCustom', () => {
+  beforeEach(() => {
+    state.main.networks = {
+      ethereum: {
+        1: {
+          connection: {
+            primary: { on: true, current: 'custom', status: 'loading', connected: false, type: '', network: '', custom: '' },
+            secondary: { on: false, current: 'custom', status: 'loading', connected: false, type: '', network: '', custom: '' }
+          }
+        }
+      }
+    }
+  })
+
+  it('sets the custom secondary RPC URL', () => {
+    setSecondaryCustomAction('ethereum', '1', 'https://backup-node.com')
+
+    expect(state.main.networks.ethereum[1].connection.secondary.custom).toBe('https://backup-node.com')
+  })
+})
+
+describe('#toggleConnection', () => {
+  beforeEach(() => {
+    state.main.networks = {
+      ethereum: {
+        1: {
+          connection: {
+            primary: { on: true, current: 'custom', status: 'connected', connected: true, type: '', network: '', custom: '' },
+            secondary: { on: false, current: 'custom', status: 'loading', connected: false, type: '', network: '', custom: '' }
+          }
+        }
+      }
+    }
+  })
+
+  it('toggles connection off when currently on', () => {
+    toggleConnectionAction('ethereum', '1', 'primary')
+
+    expect(state.main.networks.ethereum[1].connection.primary.on).toBe(false)
+  })
+
+  it('toggles connection on when currently off', () => {
+    toggleConnectionAction('ethereum', '1', 'secondary')
+
+    expect(state.main.networks.ethereum[1].connection.secondary.on).toBe(true)
+  })
+
+  it('forces connection on when explicit value is true', () => {
+    toggleConnectionAction('ethereum', '1', 'primary', true)
+
+    expect(state.main.networks.ethereum[1].connection.primary.on).toBe(true)
+  })
+
+  it('forces connection off when explicit value is false', () => {
+    toggleConnectionAction('ethereum', '1', 'primary', false)
+
+    expect(state.main.networks.ethereum[1].connection.primary.on).toBe(false)
+  })
+})
+
+describe('#setPrimary', () => {
+  beforeEach(() => {
+    state.main.networks = {
+      ethereum: {
+        1: {
+          connection: {
+            primary: { on: true, current: 'custom', status: 'loading', connected: false, type: '', network: '', custom: '' },
+            secondary: { on: false, current: 'custom', status: 'loading', connected: false, type: '', network: '', custom: '' }
+          }
+        }
+      }
+    }
+  })
+
+  it('merges status fields into primary connection', () => {
+    setPrimaryAction('ethereum', '1', { status: 'connected', connected: true })
+
+    const primary = state.main.networks.ethereum[1].connection.primary
+    expect(primary.status).toBe('connected')
+    expect(primary.connected).toBe(true)
+    expect(primary.on).toBe(true)
+  })
+})
+
+describe('#setSecondary', () => {
+  beforeEach(() => {
+    state.main.networks = {
+      ethereum: {
+        1: {
+          connection: {
+            primary: { on: true, current: 'custom', status: 'loading', connected: false, type: '', network: '', custom: '' },
+            secondary: { on: false, current: 'custom', status: 'loading', connected: false, type: '', network: '', custom: '' }
+          }
+        }
+      }
+    }
+  })
+
+  it('merges status fields into secondary connection', () => {
+    setSecondaryAction('ethereum', '1', { status: 'connected', connected: true })
+
+    const secondary = state.main.networks.ethereum[1].connection.secondary
+    expect(secondary.status).toBe('connected')
+    expect(secondary.connected).toBe(true)
+  })
+})
+
+describe('#setGasFees', () => {
+  beforeEach(() => {
+    state.main.networksMeta = {
+      ethereum: {
+        1: {
+          gas: {
+            price: {
+              selected: 'standard',
+              levels: { slow: '', standard: '', fast: '', asap: '', custom: '' }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  it('sets EIP-1559 fee data', () => {
+    const fees = { maxFeePerGas: '0x1234', maxPriorityFeePerGas: '0x100', baseFeePerGas: '0x500' }
+    setGasFeesAction('ethereum', '1', fees)
+
+    expect(state.main.networksMeta.ethereum[1].gas.price.fees).toEqual(fees)
+  })
+})
+
+describe('#setGasPrices', () => {
+  beforeEach(() => {
+    state.main.networksMeta = {
+      ethereum: {
+        1: {
+          gas: {
+            price: {
+              selected: 'standard',
+              levels: { slow: '', standard: '', fast: '', asap: '', custom: '' }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  it('sets legacy gas price levels', () => {
+    const prices = { slow: '0x1', standard: '0x2', fast: '0x3', asap: '0x4', custom: '' }
+    setGasPricesAction('ethereum', '1', prices)
+
+    expect(state.main.networksMeta.ethereum[1].gas.price.levels).toEqual(prices)
+  })
+})
+
+describe('#setGasDefault', () => {
+  beforeEach(() => {
+    state.main.networksMeta = {
+      ethereum: {
+        1: {
+          gas: {
+            price: {
+              selected: 'standard',
+              levels: { slow: '', standard: '', fast: '', asap: '', custom: '' }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  it('sets the default gas level', () => {
+    setGasDefaultAction('ethereum', '1', 'fast')
+
+    expect(state.main.networksMeta.ethereum[1].gas.price.selected).toBe('fast')
+  })
+
+  it('records lastLevel for non-custom level', () => {
+    setGasDefaultAction('ethereum', '1', 'fast')
+
+    expect(state.main.networksMeta.ethereum[1].gas.price.lastLevel).toBe('fast')
+  })
+
+  it('sets the custom price when level is custom', () => {
+    setGasDefaultAction('ethereum', '1', 'custom', '0x9999')
+
+    expect(state.main.networksMeta.ethereum[1].gas.price.levels.custom).toBe('0x9999')
+  })
+
+  it('does not set lastLevel when level is custom', () => {
+    setGasDefaultAction('ethereum', '1', 'custom', '0x9999')
+
+    expect(state.main.networksMeta.ethereum[1].gas.price.lastLevel).toBeUndefined()
+  })
+})
+
+describe('#setChainColor', () => {
+  beforeEach(() => {
+    state.main.networksMeta = {
+      ethereum: {
+        1: { blockHeight: 0, primaryColor: 'accent1' }
+      }
+    }
+  })
+
+  it('sets the chain display color', () => {
+    setChainColorAction(1, 'accent2')
+
+    expect(state.main.networksMeta.ethereum[1].primaryColor).toBe('accent2')
   })
 })
