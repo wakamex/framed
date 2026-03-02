@@ -60,7 +60,7 @@ export default function AddAccount({ onClose }: AddAccountProps) {
 function FormHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <div className="flex items-center gap-3 mb-4">
-      <button onClick={onBack} className="text-gray-500 hover:text-gray-300 text-sm">&larr; Back</button>
+      <button type="button" onClick={onBack} className="text-gray-500 hover:text-gray-300 text-sm">&larr; Back</button>
       <h3 className="text-base font-semibold text-gray-100">{title}</h3>
     </div>
   )
