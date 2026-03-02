@@ -61,7 +61,7 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt update -y
-          sudo apt install -y libudev-dev
+          sudo apt install -y libudev-dev libusb-1.0-0-dev
       - name: install macOS dev tools
         if: startsWith(matrix.os, 'macos')
         run: |
