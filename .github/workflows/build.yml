@@ -44,9 +44,10 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      # Signing secrets — builds work unsigned when these are empty
+      # Signing secrets — builds produce unsigned artifacts when these are empty
       CSC_LINK: ${{ secrets.APPLE_DEVELOPER_SIGNING_CERTIFICATE || secrets.WINDOWS_CSC_CERTIFICATE }}
       CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD || secrets.WINDOWS_CSC_PASSWORD }}
+      CSC_IDENTITY_AUTO_DISCOVERY: false
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
