@@ -87,7 +87,7 @@ interface ClusterBoxProps {
 }
 
 export const ClusterBox: React.FC<ClusterBoxProps> = ({ title, subtitle, children, style = {}, animationSlot = 0 }) => {
-  style.animationDelay = 0.1 * animationSlot + 's'
+  style.animationDelay = animationSlot / 10 + 's'
   return (
     <div className='_txMain' style={style}>
       <div className='_txMainInner'>
