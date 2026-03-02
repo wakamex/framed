@@ -219,14 +219,6 @@ export interface PermitData {
   nonce: string | number
 }
 
-// --- Gas Alerts ---
-
-export interface GasAlert {
-  threshold: number
-  enabled: boolean
-  unit: 'gwei'
-}
-
 // --- Settings ---
 
 export interface Shortcut {
@@ -234,4 +226,21 @@ export interface Shortcut {
   shortcutKey: string
   enabled: boolean
   configuring: boolean
+}
+
+// --- Transaction History ---
+
+export interface TxRecord {
+  hash: string
+  chainId: number
+  from: string
+  to: string
+  value: string
+  data?: string
+  decodedName?: string
+  status: 'pending' | 'confirmed' | 'failed'
+  submittedAt: number
+  confirmedAt?: number
+  gasUsed?: string
+  blockNumber?: number
 }

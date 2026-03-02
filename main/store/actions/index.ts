@@ -752,17 +752,41 @@ export function updateTypedDataRequest(account: string, reqId: string, data: any
   Object.assign(requests[reqId], data)
 }
 
-// ---- Gas Alerts ----
+// ---- Transaction History ----
 
-export function setGasAlert(chainId: string, threshold: number, enabled: boolean) {
-  ;(state.main as any).gasAlerts[chainId] = { threshold, enabled, unit: 'gwei' }
+const TX_HISTORY_LIMIT = 200
+
+export function addTxRecord(address: string, record: any) {
+  const key = address.toLowerCase()
+  if (!state.main.txHistory[key]) (state.main.txHistory as any)[key] = []
+  const records = state.main.txHistory[key] as any[]
+  records.unshift(record)
+  // Drop oldest entries beyond the limit
+  if (records.length > TX_HISTORY_LIMIT) {
+    records.splice(TX_HISTORY_LIMIT)
+  }
 }
 
-export function removeGasAlert(chainId: string) {
-  delete (state.main as any).gasAlerts[chainId]
+export function updateTxStatus(
+  address: string,
+  hash: string,
+  status: 'confirmed' | 'failed',
+  receipt?: { gasUsed: string; blockNumber: number }
+) {
+  const key = address.toLowerCase()
+  const records = state.main.txHistory[key] as any[] | undefined
+  if (!records) return
+  const record = records.find((r: any) => r.hash === hash)
+  if (!record) return
+  record.status = status
+  if (receipt) {
+    record.confirmedAt = Date.now()
+    record.gasUsed = receipt.gasUsed
+    record.blockNumber = receipt.blockNumber
+  }
 }
 
-export function toggleGasAlert(chainId: string) {
-  const alert = (state.main as any).gasAlerts[chainId]
-  if (alert) alert.enabled = !alert.enabled
+export function clearTxHistory(address: string) {
+  const key = address.toLowerCase()
+  ;(state.main.txHistory as any)[key] = []
 }

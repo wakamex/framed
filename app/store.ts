@@ -6,13 +6,13 @@ import type {
   Balance,
   Chain,
   ChainMetadata,
-  GasAlert,
   GasLevels,
   Origin,
   Permission,
   Shortcut,
   Signer,
-  Token
+  Token,
+  TxRecord
 } from './types'
 
 export interface MainState {
@@ -63,7 +63,7 @@ export interface MainState {
     dontRemind: string[]
     badge?: { type: string; version: string }
   }
-  gasAlerts: Record<string, GasAlert>
+  txHistory: Record<string, TxRecord[]>
 }
 
 export interface AppState {
@@ -73,7 +73,7 @@ export interface AppState {
 
   // Local UI state
   initialized: boolean
-  currentView: 'accounts' | 'signers' | 'chains' | 'settings' | 'send' | 'tokens'
+  currentView: 'accounts' | 'signers' | 'chains' | 'settings' | 'send' | 'tokens' | 'history'
   selectedAccount: string | null
 }
 
@@ -138,7 +138,6 @@ export const useSelectedAccount = () => {
   return snap.main.accounts[id] ?? null
 }
 export const useAccountsMeta = () => useSnapshot(state).main?.accountsMeta ?? {}
-export const useGasAlerts = () => useSnapshot(state).main?.gasAlerts ?? {}
 
 // Derived selectors for requests across all accounts
 export const usePendingRequests = () => {
@@ -152,6 +151,12 @@ export const usePendingRequests = () => {
     }
   }
   return requests.filter((r) => r && !['confirmed', 'declined', 'error', 'success'].includes(r.status ?? ''))
+}
+
+export const useTxHistory = (address?: string) => {
+  const snap = useSnapshot(state)
+  if (!address) return []
+  return snap.main?.txHistory?.[address.toLowerCase()] ?? []
 }
 
 // Re-export useSnapshot for components that need direct access
