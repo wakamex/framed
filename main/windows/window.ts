@@ -41,7 +41,7 @@ export function createWindow(
   return browserWindow
 }
 
-const externalWhitelist = [
+export const externalWhitelist = [
   'https://chrome.google.com/webstore/detail/frame-alpha/ldcoohedfbjoobcadoglnnmmfbdlmmhf',
   'https://addons.mozilla.org/en-US/firefox/addon/frame-extension',
   'https://github.com/wakamex/framed/issues/new',
