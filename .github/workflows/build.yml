@@ -74,7 +74,13 @@ jobs:
           fi
         env:
           NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
-      - run: npm run setup:ci
+      - name: install deps and run allowed scripts
+        shell: bash
+        run: |
+          npm ci --ignore-scripts
+          node -e "const p=JSON.parse(require('fs').readFileSync('package.json','utf8'));delete p.scripts.postinstall;require('fs').writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          npm run setup:scripts
+          git checkout package.json
       - run: npm run compile
       - run: npm run test:unit:main -- --testTimeout=5000 --verbose --detectOpenHandles --forceExit
       - run: npm run test:unit:components
