@@ -15,3 +15,4 @@ test/.userData
 *.tsbuildinfo
 *.code-workspace
 screenshots
+.claude
