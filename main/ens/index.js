@@ -1,7 +1,5 @@
 // NPM modules
-const {
-  utils: { Interface }
-} = require('ethers')
+const { encodeFunctionData, decodeFunctionResult } = require('viem')
 const namehash = require('eth-ens-namehash')
 const contentHash = require('content-hash')
 
@@ -13,8 +11,8 @@ const store = require('../store').default
 const interfaces = require('./artifacts/interfaces')
 const registryAddresses = require('./artifacts/addresses')
 
-const registryContractInterface = new Interface(interfaces.registry)
-const resolverContractInterface = new Interface(interfaces.resolver)
+const registryAbi = interfaces.registry
+const resolverAbi = interfaces.resolver
 
 /* PUBLIC */
 exports.resolveName = async (name) => {
@@ -26,7 +24,7 @@ exports.resolveName = async (name) => {
 
   // Encode function input
   const node = namehash.hash(name)
-  const input = resolverContractInterface.encodeFunctionData('addr', [node])
+  const input = encodeFunctionData({ abi: resolverAbi, functionName: 'addr', args: [node] })
 
   // Make JSON RPC call
   const params = { to: resolverAddress, data: input }
@@ -36,9 +34,9 @@ exports.resolveName = async (name) => {
   if (output === '0x') return null
 
   // Decode output and return value
-  const decodedOutput = resolverContractInterface.decodeFunctionResult('addr', output)
+  const [address] = decodeFunctionResult({ abi: resolverAbi, functionName: 'addr', data: output })
 
-  return decodedOutput[0]
+  return address
 }
 
 exports.resolveAddress = async (address) => {
@@ -53,7 +51,7 @@ exports.resolveAddress = async (address) => {
 
   // Encode function input
   const node = namehash.hash(name)
-  const input = resolverContractInterface.encodeFunctionData('name', [node])
+  const input = encodeFunctionData({ abi: resolverAbi, functionName: 'name', args: [node] })
 
   // Make JSON RPC call
   const params = { to: resolverAddress, data: input }
@@ -63,8 +61,8 @@ exports.resolveAddress = async (address) => {
   if (output === '0x') return null
 
   // Decode output and return value
-  const decodedOutput = resolverContractInterface.decodeFunctionResult('name', output)
-  return decodedOutput[0]
+  const [resolvedName] = decodeFunctionResult({ abi: resolverAbi, functionName: 'name', data: output })
+  return resolvedName
 }
 
 exports.resolveContent = async (name) => {
@@ -76,7 +74,7 @@ exports.resolveContent = async (name) => {
 
   // Encode function input
   const node = namehash.hash(name)
-  const input = resolverContractInterface.encodeFunctionData('contenthash', [node])
+  const input = encodeFunctionData({ abi: resolverAbi, functionName: 'contenthash', args: [node] })
 
   // Make JSON RPC call
   const params = { to: resolverAddress, data: input }
@@ -86,14 +84,11 @@ exports.resolveContent = async (name) => {
   if (output === '0x') return null
 
   // Decode output and return the content hash in text format
-  const decodedOutput = resolverContractInterface.decodeFunctionResult('contenthash', [node])
+  const [contentHashBytes] = decodeFunctionResult({ abi: resolverAbi, functionName: 'contenthash', data: output })
 
-  if (decodedOutput[0] === null) return null
+  if (contentHashBytes === null) return null
 
-  const hash = contentHash.decode(decodedOutput[0])
-  // const type = contentHash.getCodec(decodedOutput[0])
-  // if (type === 'ipfs-ns') return `ipfs://${hash}`
-  // if (type === 'swarm-ns') return `bzz://${hash}`
+  const hash = contentHash.decode(contentHashBytes)
   return hash
 }
 
@@ -107,7 +102,7 @@ const getResolverAddress = async (name) => {
   const registryAddress = registryAddresses[networkId]
 
   // Encode function input
-  const input = registryContractInterface.encodeFunctionData('resolver', [hash])
+  const input = encodeFunctionData({ abi: registryAbi, functionName: 'resolver', args: [hash] })
 
   // Make JSON RPC call
   const params = { to: registryAddress, data: input }
@@ -117,8 +112,8 @@ const getResolverAddress = async (name) => {
   if (output === '0x') return null
 
   // Decode output and return value
-  const decodedOutput = registryContractInterface.decodeFunctionResult('resolver', output)
-  return decodedOutput[0]
+  const [resolverAddress] = decodeFunctionResult({ abi: registryAbi, functionName: 'resolver', data: output })
+  return resolverAddress
 }
 
 const makeCall = (method, params) => {

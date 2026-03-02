@@ -2,7 +2,7 @@ import fs from 'fs'
 import { ipcMain } from 'electron'
 import log from 'electron-log'
 import { randomBytes } from 'crypto'
-import { isAddress } from '@ethersproject/address'
+import { isAddress } from 'viem'
 import { openFileDialog } from '../windows/dialog'
 import { openBlockExplorer } from '../windows/window'
 

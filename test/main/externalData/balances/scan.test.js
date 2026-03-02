@@ -2,7 +2,6 @@ import balanceLoader from '../../../../main/externalData/balances/scan'
 import multicall, { supportsChain } from '../../../../main/multicall'
 
 import log from 'electron-log'
-import { ethers } from 'ethers'
 import { addHexPrefix, padToEven } from '@ethereumjs/util'
 import ethProvider from 'eth-provider'
 import BigNumber from 'bignumber.js'
@@ -89,7 +88,7 @@ describe('#getTokenBalances', () => {
                 return {
                   success: true,
                   returnValues: [
-                    tc.returns[0](ethers.BigNumber.from(onChainBalances[token.address].toString()))
+                    tc.returns[0](BigInt(onChainBalances[token.address].toString()))
                   ]
                 }
               }

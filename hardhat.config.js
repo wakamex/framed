@@ -1,5 +1,5 @@
 /* globals task */
-const { ethers, utils } = require('ethers')
+const { parseEther, parseAbi, encodeFunctionData, stringToHex } = require('viem')
 const ethProvider = require('eth-provider')
 
 function taskWithDefaultParams(taskName, taskDescription) {
@@ -31,7 +31,7 @@ taskWithDefaultParams('send-tx', 'send a test transaction')
         })
 
         const tx = {
-          value: utils.parseEther(amount || '.0002').toHexString(),
+          value: '0x' + parseEther(amount || '.0002').toString(16),
           from: accounts[0],
           to,
           data: '0x'
@@ -78,14 +78,14 @@ taskWithDefaultParams('send-token-approval', 'approve token contract for spendin
         const eth = ethProvider(provider === 'hardhat' ? 'http://127.0.0.1:8545' : provider, {
           origin: 'frame-hardhat-worker'
         })
-        const abi = new utils.Interface(['function approve(address spender, uint256 value)'])
+        const abi = parseAbi(['function approve(address spender, uint256 value)'])
 
-        const bnAmount = ethers.BigNumber.from(amount).mul(ethers.BigNumber.from(10).pow(parseInt(decimals)))
+        const bnAmount = BigInt(amount) * BigInt(10) ** BigInt(parseInt(decimals))
 
         eth
           .request({ method: 'eth_accounts', params: [], id: 2, chainId, jsonrpc: '2.0' })
           .then((accounts) => {
-            const data = abi.encodeFunctionData('approve', [accounts[0], bnAmount])
+            const data = encodeFunctionData({ abi, functionName: 'approve', args: [accounts[0], bnAmount] })
 
             return {
               value: '0x0',
@@ -105,45 +105,58 @@ taskWithDefaultParams('send-token-approval', 'approve token contract for spendin
   )
 
 const ensAbis = require('./compiled/main/contracts/deployments/ens/abi.js')
-const registrarContract = new utils.Interface(ensAbis.registrar)
-const registrarControllerContract = new utils.Interface(ensAbis.registrarController)
+const registrarContract = ensAbis.registrar
+const registrarControllerContract = ensAbis.registrarController
 
 const ensActions = {
   commit: () => {
     return {
       to: '0x283Af0B28c62C092C9727F1Ee09c02CA627EB7F5',
-      data: registrarControllerContract.encodeFunctionData('commit', [
-        utils.formatBytes32String('testing-frame')
-      ])
+      data: encodeFunctionData({
+        abi: registrarControllerContract,
+        functionName: 'commit',
+        args: [stringToHex('testing-frame', { size: 32 })]
+      })
     }
   },
   register: ({ name, account, duration = 31536000 }) => {
     return {
       to: '0x283Af0B28c62C092C9727F1Ee09c02CA627EB7F5',
-      data: registrarControllerContract.encodeFunctionData('register', [
-        name,
-        account,
-        duration,
-        utils.formatBytes32String('asupersecret')
-      ])
+      data: encodeFunctionData({
+        abi: registrarControllerContract,
+        functionName: 'register',
+        args: [name, account, duration, stringToHex('asupersecret', { size: 32 })]
+      })
     }
   },
   renew: ({ name, duration = 31536000 }) => {
     return {
       to: '0x283Af0B28c62C092C9727F1Ee09c02CA627EB7F5',
-      data: registrarControllerContract.encodeFunctionData('renew', [name, duration])
+      data: encodeFunctionData({
+        abi: registrarControllerContract,
+        functionName: 'renew',
+        args: [name, duration]
+      })
     }
   },
   transfer: ({ account, to, tokenid }) => {
     return {
       to: '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85',
-      data: registrarContract.encodeFunctionData('transferFrom', [account, to, tokenid])
+      data: encodeFunctionData({
+        abi: registrarContract,
+        functionName: 'transferFrom',
+        args: [account, to, tokenid]
+      })
     }
   },
   approve: ({ to, tokenid }) => {
     return {
       to: '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85',
-      data: registrarContract.encodeFunctionData('approve', [to, tokenid])
+      data: encodeFunctionData({
+        abi: registrarContract,
+        functionName: 'approve',
+        args: [to, tokenid]
+      })
     }
   }
 }

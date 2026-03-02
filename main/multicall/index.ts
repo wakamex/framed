@@ -1,8 +1,7 @@
-import { Interface } from '@ethersproject/abi'
+import { encodeFunctionData, decodeFunctionResult, parseAbi, type Abi, type Hex } from 'viem'
 import { addHexPrefix } from '@ethereumjs/util'
 import log from 'electron-log'
 
-import type { BytesLike } from '@ethersproject/bytes'
 import type EthereumProvider from 'ethereum-provider'
 
 import {
@@ -17,8 +16,8 @@ import {
 
 export { Call }
 
-const multicallInterface = new Interface(abi)
-const memoizedInterfaces: Record<string, Interface> = {}
+const multicallAbi = abi as Abi
+const memoizedAbis: Record<string, Abi> = {}
 
 function chainConfig(chainId: number, eth: EthereumProvider): MulticallConfig {
   return {
@@ -30,15 +29,15 @@ function chainConfig(chainId: number, eth: EthereumProvider): MulticallConfig {
 }
 
 async function makeCall(functionName: string, params: any[], config: MulticallConfig) {
-  const data = multicallInterface.encodeFunctionData(functionName, params)
+  const data = encodeFunctionData({ abi: multicallAbi, functionName, args: params })
 
-  const response: BytesLike = await config.provider.request({
+  const response: Hex = await config.provider.request({
     method: 'eth_call',
     params: [{ to: config.address, data }, 'latest'],
     chainId: addHexPrefix(config.chainId.toString(16))
   })
 
-  return multicallInterface.decodeFunctionResult(functionName, response)
+  return decodeFunctionResult({ abi: multicallAbi, functionName, data: response })
 }
 
 function buildCallData<R, T>(calls: Call<R, T>[]) {
@@ -46,8 +45,8 @@ function buildCallData<R, T>(calls: Call<R, T>[]) {
     const [fnSignature, ...params] = call
     const fnName = getFunctionNameFromSignature(fnSignature)
 
-    const callInterface = getInterface(fnSignature)
-    const calldata = callInterface.encodeFunctionData(fnName, params)
+    const callAbi = getAbi(fnSignature)
+    const calldata = encodeFunctionData({ abi: callAbi, functionName: fnName, args: params })
 
     return [target, calldata]
   })
@@ -55,13 +54,18 @@ function buildCallData<R, T>(calls: Call<R, T>[]) {
 
 function getResultData(results: any, call: string[], target: string) {
   const [fnSignature] = call
-  const callInterface = memoizedInterfaces[fnSignature]
+  const callAbi = memoizedAbis[fnSignature]
   const fnName = getFunctionNameFromSignature(fnSignature)
   try {
-    return callInterface.decodeFunctionResult(fnName, results)
+    const decoded = decodeFunctionResult({ abi: callAbi, functionName: fnName, data: results })
+    return Array.isArray(decoded) ? decoded : [decoded]
   } catch (e) {
     log.warn(`Failed to decode ${fnName},`, { target, results })
-    const outputs = callInterface.getFunction(fnName).outputs || []
+    // Return nulls for each expected output
+    const abiEntry = callAbi.find(
+      (entry) => 'name' in entry && entry.name === fnName && entry.type === 'function'
+    )
+    const outputs = abiEntry && 'outputs' in abiEntry ? abiEntry.outputs || [] : []
     return outputs.map(() => null)
   }
 }
@@ -76,17 +80,17 @@ function getFunctionNameFromSignature(signature: string) {
   return (m.groups || {}).signature
 }
 
-function getInterface(functionSignature: string) {
-  if (!(functionSignature in memoizedInterfaces)) {
-    memoizedInterfaces[functionSignature] = new Interface([functionSignature])
+function getAbi(functionSignature: string) {
+  if (!(functionSignature in memoizedAbis)) {
+    memoizedAbis[functionSignature] = parseAbi([functionSignature])
   }
 
-  return memoizedInterfaces[functionSignature]
+  return memoizedAbis[functionSignature]
 }
 
 async function aggregate<R, T>(calls: Call<R, T>[], config: MulticallConfig): Promise<CallResult<T>[]> {
   const aggData = buildCallData(calls)
-  const response = await makeCall('aggregate', [aggData], config)
+  const response = await makeCall('aggregate', [aggData], config) as any
 
   return calls.map(({ call, returns, target }, i) => {
     const resultData = getResultData(response.returndata[i], call, target)
@@ -97,7 +101,7 @@ async function aggregate<R, T>(calls: Call<R, T>[], config: MulticallConfig): Pr
 
 async function tryAggregate<R, T>(calls: Call<R, T>[], config: MulticallConfig) {
   const aggData = buildCallData(calls)
-  const response = await makeCall('tryAggregate', [false, aggData], config)
+  const response = await makeCall('tryAggregate', [false, aggData], config) as any
 
   return calls.map(({ call, returns, target }, i) => {
     const results = response.result[i]

@@ -2,7 +2,7 @@ const path = require('path')
 const HotSigner = require('../HotSigner')
 const bip39 = require('bip39')
 const hdKey = require('hdkey')
-const { computeAddress } = require('ethers').utils
+const { publicKeyToAddress } = require('viem/accounts')
 
 const WORKER_PATH = path.resolve(__dirname, 'worker.js')
 
@@ -27,7 +27,7 @@ class SeedSigner extends HotSigner {
       const addresses = []
       for (let i = 0; i < 100; i++) {
         const publicKey = wallet.derive("m/44'/60'/0'/0/" + i).publicKey
-        const address = computeAddress(publicKey)
+        const address = publicKeyToAddress('0x' + publicKey.toString('hex'))
         addresses.push(address)
       }
 

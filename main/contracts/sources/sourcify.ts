@@ -3,7 +3,16 @@ import log from 'electron-log'
 import { fetchWithTimeout } from '../../../resources/utils/fetch'
 
 import type { Response } from 'node-fetch'
-import type { JsonFragment } from '@ethersproject/abi'
+// ABI fragment type (compatible with JSON ABI format)
+type JsonFragment = {
+  type?: string
+  name?: string
+  inputs?: Array<{ name: string; type: string; indexed?: boolean; components?: JsonFragment[] }>
+  outputs?: Array<{ name: string; type: string; components?: JsonFragment[] }>
+  stateMutability?: string
+  constant?: boolean
+  payable?: boolean
+}
 import type { ContractSource } from '..'
 
 interface SourcifySourceCodeResponse {

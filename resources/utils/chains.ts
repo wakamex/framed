@@ -1,4 +1,3 @@
-import { utils } from 'ethers'
 import { hexToInt } from '.'
 
 import type { Chain } from '../../main/store/state'

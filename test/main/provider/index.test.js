@@ -1,5 +1,5 @@
 import log from 'electron-log'
-import { utils } from 'ethers'
+import { parseUnits } from 'viem'
 import { validate as validateUUID } from 'uuid'
 import { addHexPrefix, intToHex } from '@ethereumjs/util'
 import { SignTypedDataVersion } from '@metamask/eth-sig-util'
@@ -1505,7 +1505,7 @@ describe('#signAndSend', () => {
     // 200 gwei * 10M gas = 2 FTM
     tx.chainId = '0xfa'
     tx.type = '0x0'
-    tx.gasPrice = utils.parseUnits('210', 'gwei').toHexString()
+    tx.gasPrice = '0x' + parseUnits('210', 9).toString(16)
     tx.gasLimit = addHexPrefix((1e7).toString(16))
 
     accounts.signTransaction.mockImplementation(() => done())
@@ -1517,7 +1517,7 @@ describe('#signAndSend', () => {
     // 200 gwei * 10M gas = 2 ETH
     tx.chainId = '0x1'
     tx.type = '0x0'
-    tx.gasPrice = utils.parseUnits('210', 'gwei').toHexString()
+    tx.gasPrice = '0x' + parseUnits('210', 9).toString(16)
     tx.gasLimit = addHexPrefix((1e7).toString(16))
 
     signAndSend((err) => {
@@ -1534,7 +1534,7 @@ describe('#signAndSend', () => {
     // 200 gwei * 10M gas = 2 ETH
     tx.chainId = '0x1'
     tx.type = '0x2'
-    tx.maxFeePerGas = utils.parseUnits('210', 'gwei').toHexString()
+    tx.maxFeePerGas = '0x' + parseUnits('210', 9).toString(16)
     tx.gasLimit = addHexPrefix((1e7).toString(16))
 
     signAndSend((err) => {

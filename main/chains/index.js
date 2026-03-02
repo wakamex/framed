@@ -3,8 +3,7 @@ const { powerMonitor } = require('electron')
 const EventEmitter = require('events')
 const { addHexPrefix } = require('@ethereumjs/util')
 const { Hardfork } = require('@ethereumjs/common')
-const { estimateL1GasCost } = require('@eth-optimism/sdk')
-const { Web3Provider } = require('@ethersproject/providers')
+const { estimateL1GasCost } = require('../provider/l1Gas')
 const BigNumber = require('bignumber.js')
 const provider = require('eth-provider')
 const log = require('electron-log')
@@ -142,7 +141,8 @@ class ChainConnection extends EventEmitter {
           }
 
           try {
-            const l1GasCost = BigNumber((await estimateL1GasCost(provider, tx)).toHexString())
+            const l1Fee = await estimateL1GasCost(provider, tx)
+            const l1GasCost = BigNumber('0x' + l1Fee.toString(16))
             const l2GasCost = BigNumber(tx.gasLimit).multipliedBy(gasPrice)
             const estimatedGas = l1GasCost.plus(l2GasCost)
 
