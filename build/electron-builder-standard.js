@@ -2,6 +2,8 @@
 
 const baseConfig = require('./electron-builder-base.js')
 
+const hasCert = !!process.env.CSC_LINK
+
 const config = {
   ...baseConfig,
   afterSign: './build/notarize.js',
@@ -31,10 +33,13 @@ const config = {
       arch: ['x64', 'arm64']
     },
     notarize: false,
-    hardenedRuntime: true,
+    // When no signing certificate is available (e.g. public CI), disable
+    // signing entirely to avoid ad-hoc codesign verification failures on arm64.
+    identity: hasCert ? undefined : null,
+    hardenedRuntime: hasCert,
     gatekeeperAssess: false,
-    entitlements: 'build/entitlements.mac.plist',
-    requirements: 'build/electron-builder-requirements.txt'
+    entitlements: hasCert ? 'build/entitlements.mac.plist' : undefined,
+    requirements: hasCert ? 'build/electron-builder-requirements.txt' : undefined
   },
   win: {
     signAndEditExecutable: true,
