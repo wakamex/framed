@@ -16,3 +16,8 @@ test/.userData
 *.code-workspace
 screenshots
 .claude
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
+.swarm/

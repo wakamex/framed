@@ -5,7 +5,13 @@
       "Bash(gh api:*)",
       "Bash(find:*)",
       "Bash(npx tsc:*)",
-      "Bash(./node_modules/.bin/tsc:*)"
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(bd tasks:*)",
+      "Bash(bd:*)",
+      "Bash(git:*)",
+      "Bash(gh pr:*)",
+      "Bash(npx jest:*)",
+      "Bash(do echo:*)"
     ]
   }
 }
