@@ -1,9 +1,6 @@
 <h2 align="center">
   <br>
-  <img src="/asset/png/FrameLogo512.png?raw=true" alt="Frame" width="150" />
-  <br>
-  <br>
-  F R A M E
+  F R A M E D
   <br>
   <br>
 </h2>
@@ -12,14 +9,11 @@
 <h5 align="center">
   <a href="#features">Features</a> ⁃
   <a href="#installation">Installation</a> ⁃
-  <a href="#usage">Usage</a> ⁃
-  <a href="#related">Related</a>
+  <a href="#usage">Usage</a>
 </h5>
 <br>
 
-<img src="/asset/png/FrameExample0-6-3.png?raw=true" />
-
-Frame is a web3 platform that creates a secure system-wide interface to your chains and accounts. Now any browser, command-line, or native application has the ability to access web3.
+Framed is a modernized fork of [Frame](https://github.com/floating/frame), a web3 platform that creates a secure system-wide interface to your chains and accounts. Now any browser, command-line, or native application has the ability to access web3.
 
 ### Features
 
@@ -67,36 +61,16 @@ The original Frame relied on Pylon (`evm.pylon.link`, `data.pylon.link`), a prop
 - **NFT inventory** subscription removed — it only served ENS token ID lookups in transaction descriptions and was never displayed in any UI. ENS registration, renewal, and transfer transactions are still fully decoded.
 - The `@framelabs/pylon-client` package has been removed from dependencies.
 
-### Talks
-
-- [Frame at Aracon](https://www.youtube.com/watch?v=wlZWLiy2GD0)
-
 ### Installation
-
-#### Downloads
-
-- [Production Releases](https://github.com/floating/frame/releases)
-- [Canary Releases](https://github.com/frame-labs/frame-canary/releases)
-
-#### Arch Linux
-
-If you use an arch-based distro, you can use an AUR Helper like [yay](https://github.com/Jguer/yay) to install Frame by running `yay -S frame-eth` or for the development version: `yay -S frame-eth-dev`.
-
-#### Run Source
 
 **On Ubuntu:** Run `sudo apt-get install build-essential libudev-dev`.
 
 ```bash
 # Clone
-› git clone https://github.com/floating/frame
-
-# Use node v18
-› nvm install 18.12.1
-› nvm use 18.12.1
-
+› git clone https://github.com/wakamex/framed
 
 # Install
-› npm run setup
+› ./setup.sh
 
 # Run
 › npm run prod
@@ -106,7 +80,7 @@ If you use an arch-based distro, you can use an AUR Helper like [yay](https://gi
 
 ```bash
 › npm run bundle # Create bundle
-› npm run build # Build Frame for current platform
+› npm run build # Build Framed for current platform
 ```
 
 ### Usage
@@ -121,17 +95,6 @@ Frame also has a browser extension for injecting a Frame-connected [EIP-1193](ht
 
 ### Related
 
-- [Frame Chat](https://discord.gg/UH7NGqY) - Feel free to drop in and ask questions!
 - [Frame Browser Extension](https://github.com/frame-labs/frame-extension) - Use Frame with any web dapp
 - [eth-provider](https://github.com/floating/eth-provider) - A universal Ethereum provider
-- [Restore](https://github.com/floating/restore) - A predictable and observable state container for React apps
-
-<h2>
-  <h5 align="center">
-    <br>
-    <a href="https://frame.sh">Website</a> ⁃
-    <a href="https://medium.com/@framehq">Blog</a> ⁃
-    <a href="https://twitter.com/0xFrame">Twitter</a> ⁃
-    <a href="https://discord.gg/UH7NGqY">Chat</a>
-  </h5>
-</h2>
+- [Original Frame](https://github.com/floating/frame) - The upstream project this fork is based on
