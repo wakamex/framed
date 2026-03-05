@@ -17,7 +17,7 @@ const mockFetch = jest.fn()
 global.fetch = mockFetch
 
 // Helpers to create mock state
-function createState({ knownTokens = [], customTokens = [] } = {}) {
+function createState({ knownTokens = [], customTokens = [], balances = {} } = {}) {
   return {
     main: {
       tokens: {
@@ -28,7 +28,8 @@ function createState({ knownTokens = [], customTokens = [] } = {}) {
           return acc
         }, {}),
         custom: customTokens
-      }
+      },
+      balances
     }
   }
 }
@@ -353,6 +354,103 @@ describe('fetchRates with custom tokens', () => {
     await Promise.resolve()
 
     expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(`ethereum:${customAddress}`))
+  })
+})
+
+// ---- Balance-derived token rates ----
+
+describe('balance-derived token rates', () => {
+  it('fetches rates for tokens found in balances but not in known/custom lists', async () => {
+    const eulAddress = '0xd9fcd98c322942075a5c3860693e9f4f03aae07b'
+    const state = createState({
+      balances: {
+        '0xowner': [
+          { address: eulAddress, chainId: 1, symbol: 'EUL', name: 'Euler', displayBalance: '100' },
+          { address: NATIVE_CURRENCY, chainId: 1, symbol: 'ETH', name: 'Ether', displayBalance: '1' }
+        ]
+      }
+    })
+    const service = rates(state)
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ coins: { [`ethereum:${eulAddress}`]: { price: 5.0 } } })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ coins: { [`ethereum:${eulAddress}`]: 2.0 } })
+      })
+
+    service.updateSubscription([1])
+
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(`ethereum:${eulAddress}`))
+    expect(setRates).toHaveBeenCalledWith(
+      expect.objectContaining({
+        [eulAddress]: expect.objectContaining({
+          usd: expect.objectContaining({ price: 5.0 })
+        })
+      })
+    )
+  })
+
+  it('does not duplicate balance tokens already in known tokens', async () => {
+    const tokenAddress = '0xtoken000000000000000000000000000000000001'
+    const ownerAddress = '0xowner'
+    const state = createState({
+      knownTokens: [{ chainId: 1, address: tokenAddress, ownerAddress }],
+      balances: {
+        [ownerAddress]: [
+          { address: tokenAddress, chainId: 1, symbol: 'TKN', name: 'Token', displayBalance: '50' }
+        ]
+      }
+    })
+    const service = rates(state)
+
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ coins: {} }) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ coins: {} }) })
+
+    service.updateSubscription([1], ownerAddress)
+
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const url = mockFetch.mock.calls[0]?.[0] || ''
+    const occurrences = (url.match(new RegExp(`ethereum:${tokenAddress}`, 'g')) || []).length
+    expect(occurrences).toBe(1)
+  })
+
+  it('skips native currency balances (only fetches ERC-20s)', async () => {
+    const state = createState({
+      balances: {
+        '0xowner': [
+          { address: NATIVE_CURRENCY, chainId: 1, symbol: 'ETH', name: 'Ether', displayBalance: '10' }
+        ]
+      }
+    })
+    const service = rates(state)
+
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ coins: {} }) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ coins: {} }) })
+
+    service.updateSubscription([1])
+
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    // Only the native coin ID should be in the URL, not a duplicate
+    const url = mockFetch.mock.calls[0]?.[0] || ''
+    const nativeOccurrences = (url.match(new RegExp(`ethereum:${NATIVE_CURRENCY}`, 'g')) || []).length
+    expect(nativeOccurrences).toBe(1)
   })
 })
 

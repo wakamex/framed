@@ -590,6 +590,9 @@
   .mb-4 {
     margin-bottom: calc(var(--spacing) * 4);
   }
+  .ml-0\.5 {
+    margin-left: calc(var(--spacing) * 0.5);
+  }
   .ml-1 {
     margin-left: calc(var(--spacing) * 1);
   }
@@ -677,6 +680,9 @@
   .w-20 {
     width: calc(var(--spacing) * 20);
   }
+  .w-36 {
+    width: calc(var(--spacing) * 36);
+  }
   .w-44 {
     width: calc(var(--spacing) * 44);
   }
@@ -691,6 +697,9 @@
   }
   .max-w-2xl {
     max-width: var(--container-2xl);
+  }
+  .max-w-4xl {
+    max-width: var(--container-4xl);
   }
   .max-w-lg {
     max-width: var(--container-lg);
@@ -757,6 +766,9 @@
   }
   .justify-end {
     justify-content: flex-end;
+  }
+  .gap-0\.5 {
+    gap: calc(var(--spacing) * 0.5);
   }
   .gap-1 {
     gap: calc(var(--spacing) * 1);
@@ -867,6 +879,9 @@
   .border-gray-700 {
     border-color: var(--color-gray-700);
   }
+  .border-gray-700\/50 {
+    border-color: color-mix(in oklab, var(--color-gray-700) 50%, transparent);
+  }
   .border-gray-800 {
     border-color: var(--color-gray-800);
   }
@@ -887,6 +902,9 @@
   }
   .bg-black\/70 {
     background-color: color-mix(in oklab, var(--color-black) 70%, transparent);
+  }
+  .bg-blue-400 {
+    background-color: var(--color-blue-400);
   }
   .bg-gray-100 {
     background-color: var(--color-gray-100);
@@ -944,6 +962,9 @@
   }
   .bg-yellow-500\/20 {
     background-color: color-mix(in oklab, var(--color-yellow-500) 20%, transparent);
+  }
+  .p-2 {
+    padding: calc(var(--spacing) * 2);
   }
   .p-3 {
     padding: calc(var(--spacing) * 3);
@@ -1091,6 +1112,12 @@
   .text-green-400 {
     color: var(--color-green-400);
   }
+  .text-green-400\/80 {
+    color: color-mix(in oklab, var(--color-green-400) 80%, transparent);
+  }
+  .text-orange-400\/80 {
+    color: color-mix(in oklab, var(--color-orange-400) 80%, transparent);
+  }
   .text-red-400 {
     color: var(--color-red-400);
   }
@@ -1106,11 +1133,18 @@
   .text-yellow-400 {
     color: var(--color-yellow-400);
   }
+  .text-yellow-400\/80 {
+    color: color-mix(in oklab, var(--color-yellow-400) 80%, transparent);
+  }
   .capitalize {
     text-transform: capitalize;
   }
   .uppercase {
     text-transform: uppercase;
+  }
+  .tabular-nums {
+    --tw-numeric-spacing: tabular-nums;
+    font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,) var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
   }
   .underline {
     text-decoration-line: underline;
@@ -1188,6 +1222,13 @@
     &:hover {
       @media (hover: hover) {
         background-color: var(--color-gray-800);
+      }
+    }
+  }
+  .hover\:bg-gray-800\/30 {
+    &:hover {
+      @media (hover: hover) {
+        background-color: color-mix(in oklab, var(--color-gray-800) 30%, transparent);
       }
     }
   }
@@ -1360,6 +1401,26 @@
   inherits: false;
 }
 @property --tw-tracking {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ordinal {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-slashed-zero {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-numeric-figure {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-numeric-spacing {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-numeric-fraction {
   syntax: "*";
   inherits: false;
 }

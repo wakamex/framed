@@ -30,6 +30,23 @@ export default function rates(state: any) {
     getKnownTokens: (address?: Address) =>
       ((address && (state.main.tokens.known as any)?.[address]) || []) as Token[],
     getCustomTokens: () => (state.main.tokens.custom || []) as Token[],
+    getBalanceTokens: () => {
+      const balances: Record<string, any[]> = (state.main.balances as any) || {}
+      const seen = new Set<string>()
+      const tokens: { address: string; chainId: number }[] = []
+      for (const acctBalances of Object.values(balances)) {
+        for (const b of acctBalances) {
+          if (b.address && b.address !== NATIVE_CURRENCY) {
+            const key = `${b.chainId}:${b.address}`
+            if (!seen.has(key)) {
+              seen.add(key)
+              tokens.push({ address: b.address, chainId: b.chainId })
+            }
+          }
+        }
+      }
+      return tokens
+    },
     setNativeCurrencyRate: (chainId: number, rate: Rate) =>
       setNativeCurrencyData('ethereum', chainId, { usd: rate } as any),
     setTokenRates: (rates: Record<Address, UsdRate>) => setRates(rates)
@@ -45,7 +62,17 @@ export default function rates(state: any) {
       .getCustomTokens()
       .filter((t) => !knownTokens.some((kt) => kt.address === t.address && kt.chainId === t.chainId))
 
-    const allTokens = [...knownTokens, ...customTokens]
+    // Also include tokens discovered via on-chain balance scanning
+    const balanceTokens = storeApi
+      .getBalanceTokens()
+      .filter(
+        (bt) =>
+          currentChains.includes(bt.chainId) &&
+          !knownTokens.some((kt) => kt.address === bt.address && kt.chainId === bt.chainId) &&
+          !customTokens.some((ct) => ct.address === bt.address && ct.chainId === bt.chainId)
+      )
+
+    const allTokens = [...knownTokens, ...customTokens, ...balanceTokens]
 
     // Build coin IDs for native currencies and tokens
     const nativeCoinIds = currentChains
