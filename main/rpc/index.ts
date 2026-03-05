@@ -16,6 +16,7 @@ import { updateLattice, trustExtension, addTxRecord } from '../store/actions'
 import txTracker from '../txHistory'
 import { resolveName } from '../ens'
 
+import { parseWatchListCsv } from '../watchlist'
 import { arraysEqual, randomLetters } from '../../resources/utils'
 import { isSignatureRequest } from '../signatures'
 import TrezorBridge from '../../main/signers/trezor/bridge'
@@ -197,52 +198,12 @@ const rpc: Record<string, (...args: any[]) => void> = {
         if (!res.ok) return cb(new Error(`Failed to fetch: ${res.status} ${res.statusText}`))
         csv = await res.text()
       } else {
-        // Source is 'file' — open a file dialog
         const file = await openCsvFileDialog()
         if (!file || file.canceled || !file.filePaths.length) return cb(new Error('No file selected'))
         csv = fs.readFileSync(file.filePaths[0], 'utf8')
       }
 
-      const lines = csv
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter((l) => l && !l.startsWith('#'))
-
-      if (!lines.length) return cb(new Error('CSV file is empty'))
-
-      // Detect if first line is a header
-      const firstFields = lines[0].split(',').map((f) => f.trim().toLowerCase())
-      const hasHeader = firstFields.includes('name') || firstFields.includes('address')
-      const dataLines = hasHeader ? lines.slice(1) : lines
-
-      const results: Array<{ name: string; address: string; error?: string }> = []
-      const toAdd: Array<{ address: string; name: string }> = []
-      const seen = new Set<string>()
-
-      for (const line of dataLines) {
-        const parts = line.split(',').map((p) => p.trim())
-        if (parts.length < 2) {
-          results.push({ name: parts[0] || '', address: '', error: 'Invalid row format' })
-          continue
-        }
-
-        const [name, address] = parts
-
-        if (!isAddress(address)) {
-          results.push({ name, address, error: `Invalid address: ${address}` })
-          continue
-        }
-
-        const normalized = address.toLowerCase()
-        if (seen.has(normalized)) {
-          results.push({ name, address })
-          continue
-        }
-        seen.add(normalized)
-
-        toAdd.push({ address, name })
-        results.push({ name, address })
-      }
+      const { results, toAdd } = parseWatchListCsv(csv)
 
       // Return results to renderer immediately
       cb(null, results)
@@ -262,7 +223,6 @@ const rpc: Record<string, (...args: any[]) => void> = {
       }
       if (toAdd.length > 0) setTimeout(() => createBatch(0), 100)
     } catch (err) {
-      log.error('Watch list: error', err)
       cb(err)
     }
   },
