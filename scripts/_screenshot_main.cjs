@@ -163,6 +163,15 @@ const mockState = {
               gasLimit: '0x5208',
               gasPrice: '0x5d21dba00'
             }
+          },
+          'req-access-1': {
+            handlerId: 'req-access-1',
+            type: 'access',
+            status: 'pending',
+            origin: 'app.uniswap.org',
+            account: '0x1234567890abcdef1234567890abcdef12345678',
+            created: Date.now(),
+            payload: { jsonrpc: '2.0', id: 3, method: 'eth_requestAccounts', params: [] }
           }
         },
         ensName: 'alice.eth',
@@ -459,6 +468,43 @@ const interactions = {
             resolve('addToken overlay not found, no navigation available, text: ' + text.substring(0, 100));
           };
           setTimeout(findAddToken, 300);
+        });
+      })()`
+    },
+    {
+      name: 'access-request',
+      js: `(() => {
+        // Navigate to Main Account then find the access request overlay
+        return new Promise(resolve => {
+          // First navigate back to accounts view and click Main Account
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+          setTimeout(() => {
+            const navBtns = document.querySelectorAll('nav button');
+            if (navBtns[0]) navBtns[0].click();
+            setTimeout(() => {
+              const candidates = Array.from(document.querySelectorAll('main button')).filter(b =>
+                b.textContent.includes('Main Account') || b.textContent.match(/0x1234/i)
+              );
+              if (candidates[0]) candidates[0].click();
+              // Now navigate through requests to find the access request
+              let attempts = 0;
+              const findAccess = () => {
+                if (attempts++ > 8) { resolve('access request not found after 8 attempts'); return; }
+                const text = document.body.innerText;
+                if (text.includes('Account Access') && text.includes('app.uniswap.org')) {
+                  resolve('access request overlay visible with origin and Allow/Deny buttons');
+                  return;
+                }
+                const btns = Array.from(document.querySelectorAll('button'));
+                const nextBtn = btns.find(b => b.textContent.includes('Next') && !b.disabled);
+                if (nextBtn) { nextBtn.click(); setTimeout(findAccess, 300); return; }
+                const prevBtn = btns.find(b => b.textContent.includes('Prev') && !b.disabled);
+                if (prevBtn) { prevBtn.click(); setTimeout(findAccess, 300); return; }
+                resolve('access request overlay not found, text: ' + text.substring(0, 100));
+              };
+              setTimeout(findAccess, 400);
+            }, 300);
+          }, 300);
         });
       })()`
     },
