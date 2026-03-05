@@ -20,19 +20,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: read version from package.json
         id: package-version
-        uses: martinbeentjes/npm-get-version-action@master
+        run: echo "current-version=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
       - name: check for existing release
         run: gh release list --exclude-drafts | grep -q ".*v${{ steps.package-version.outputs.current-version }}" && exit 1 || true
       - name: remove old draft releases
         run: gh release list | grep -e "Draft.*v${{ steps.package-version.outputs.current-version }}" | awk '{print $3}' | xargs -r -n1 gh release delete
       - name: create new draft release
-        uses: marvinpinto/action-automatic-releases@latest
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          automatic_release_tag: v${{ steps.package-version.outputs.current-version }}
-          prerelease: false
-          draft: true
-          title: ${{ steps.package-version.outputs.current-version }}
+        run: gh release create "v${{ steps.package-version.outputs.current-version }}" --draft --title "${{ steps.package-version.outputs.current-version }}"
 
   build_release:
     needs: [create_draft_release]
