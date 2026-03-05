@@ -262,6 +262,22 @@ const interactions = {
       })()`
     }
   ],
+  portfolio: [
+    {
+      name: 'portfolio-collapsed',
+      js: `(() => {
+        // Find and click the first collapsible section header (should be 'By Chain' or similar)
+        // Look for buttons with chevron/arrow icons or section headers that toggle
+        const buttons = Array.from(document.querySelectorAll('main button'));
+        const sectionBtn = buttons.find(b => b.textContent.includes('By Chain') || b.textContent.includes('Chain') || b.querySelector('svg'));
+        if (sectionBtn) { sectionBtn.click(); return 'clicked section: ' + sectionBtn.textContent.trim().substring(0, 50); }
+        // Fallback: click any heading-like button
+        const headings = buttons.filter(b => b.className.includes('font-medium') || b.className.includes('uppercase'));
+        if (headings[0]) { headings[0].click(); return 'clicked heading: ' + headings[0].textContent.trim().substring(0, 50); }
+        return 'no collapsible section found, buttons: ' + buttons.length;
+      })()`
+    }
+  ],
   contacts: [
     {
       name: 'add-contact-modal',
