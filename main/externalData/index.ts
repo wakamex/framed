@@ -94,6 +94,39 @@ export default function () {
     handleTokensUpdate(customTokens)
   })
 
+  // Track balance-derived token addresses so we re-fetch rates when new tokens appear
+  let balanceTokenKeys = new Set<string>()
+
+  const handleBalancesUpdate = debounce(() => {
+    log.verbose('updating rates due to new balance tokens')
+    rates.updateSubscription(connectedChains, activeAccount)
+  }, 1500)
+
+  const unsubBalances = subscribe(state, () => {
+    const allBalances: Record<string, any[]> = (state.main.balances as any) || {}
+    const keys = new Set<string>()
+    for (const acctBalances of Object.values(allBalances)) {
+      for (const b of acctBalances) {
+        if (b.address && b.chainId) keys.add(`${b.chainId}:${b.address}`)
+      }
+    }
+
+    // Only trigger if new tokens appeared
+    let hasNew = false
+    for (const key of keys) {
+      if (!balanceTokenKeys.has(key)) {
+        hasNew = true
+        break
+      }
+    }
+
+    balanceTokenKeys = keys
+
+    if (hasNew) {
+      handleBalancesUpdate()
+    }
+  })
+
   const unsubTray = subscribe(state, () => {
     const open = (state as any).tray?.open
 
@@ -117,6 +150,7 @@ export default function () {
       unsubNetworks()
       unsubActiveAddress()
       unsubCustomTokens()
+      unsubBalances()
       unsubTray()
 
       rates.stop()

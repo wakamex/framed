@@ -14,6 +14,31 @@ interface DisplayedBalance extends Balance {
 }
 
 const UNKNOWN = '?'
+const SUBSCRIPT_DIGITS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉']
+const MIN_ZEROS_FOR_SUBSCRIPT = 4
+
+export function formatSmallNumber(value: number, sigFigs = 4): string | undefined {
+  if (value <= 0 || value >= 0.001) return undefined
+
+  const str = value.toFixed(20)
+  const afterDecimal = str.split('.')[1] || ''
+
+  let zeroCount = 0
+  for (const ch of afterDecimal) {
+    if (ch === '0') zeroCount++
+    else break
+  }
+
+  if (zeroCount < MIN_ZEROS_FOR_SUBSCRIPT) return undefined
+
+  const significant = afterDecimal.slice(zeroCount, zeroCount + sigFigs).replace(/0+$/, '')
+  const subscript = String(zeroCount)
+    .split('')
+    .map((d) => SUBSCRIPT_DIGITS[parseInt(d)])
+    .join('')
+
+  return `0.0${subscript}${significant}`
+}
 
 export function formatBalance(balance: BigNumber, totalValue: BigNumber, decimals = 8) {
   const isZero = balance.isZero()
@@ -26,12 +51,16 @@ export function formatBalance(balance: BigNumber, totalValue: BigNumber, decimal
 }
 
 export function formatUsdRate(rate: BigNumber, decimals = 2) {
-  return rate.isNaN()
-    ? UNKNOWN
-    : new Intl.NumberFormat('us-US', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals
-      }).format(Number(rate.toFixed(decimals, BigNumber.ROUND_FLOOR)))
+  if (rate.isNaN()) return UNKNOWN
+
+  const num = rate.toNumber()
+  const small = formatSmallNumber(num)
+  if (small) return small
+
+  return new Intl.NumberFormat('us-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  }).format(Number(rate.toFixed(decimals, BigNumber.ROUND_FLOOR)))
 }
 
 export function createBalance(rawBalance: Balance, quote?: Rate): DisplayedBalance {

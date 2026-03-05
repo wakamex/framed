@@ -352,3 +352,155 @@ describe('PortfolioView', () => {
     expect(screen.queryByText('$?')).toBeNull()
   })
 })
+
+describe('PortfolioView exhaustive price availability', () => {
+  beforeEach(() => {
+    setupDefaults()
+  })
+
+  it('shows USD value for every ERC-20 token that has a rate', () => {
+    const USDC = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+    const DAI = '0x6b175474e89094c44da98b954eedeac495271d0f'
+    const EUL = '0xd9fcd98c322942075a5c3860693e9f4f03aae07b'
+
+    mockUseAllBalances.mockReturnValue({
+      '0xabc123': [
+        { symbol: 'ETH', name: 'Ether', displayBalance: '2', address: NATIVE_CURRENCY, chainId: 1 },
+        { symbol: 'USDC', name: 'USD Coin', displayBalance: '5000', address: USDC, chainId: 1 },
+        { symbol: 'DAI', name: 'Dai', displayBalance: '3000', address: DAI, chainId: 1 },
+        { symbol: 'EUL', name: 'Euler', displayBalance: '200', address: EUL, chainId: 1 }
+      ]
+    })
+    mockUseNetworksMeta.mockReturnValue({
+      '1': { nativeCurrency: { usd: { price: 2500 } } }
+    })
+    mockUseRates.mockReturnValue({
+      [USDC]: { usd: { price: 1.0, change24hr: 0.01 } },
+      [DAI]: { usd: { price: 1.0, change24hr: -0.02 } },
+      [EUL]: { usd: { price: 5.0, change24hr: 3.0 } }
+    })
+
+    render(<PortfolioView />)
+
+    // No "—" should appear since all tokens have prices
+    expect(screen.queryAllByText('—').length).toBe(0)
+
+    // Total: 2*2500 + 5000*1 + 3000*1 + 200*5 = 5000+5000+3000+1000 = 14000
+    const totalMatches = screen.getAllByText('$14,000')
+    expect(totalMatches.length).toBeGreaterThan(0)
+  })
+
+  it('shows USD for native currency and "—" only for tokens without rates', () => {
+    const USDC = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+    const OBSCURE = '0xdeadbeef00000000000000000000000000000001'
+
+    mockUseAllBalances.mockReturnValue({
+      '0xabc123': [
+        { symbol: 'ETH', name: 'Ether', displayBalance: '1', address: NATIVE_CURRENCY, chainId: 1 },
+        { symbol: 'USDC', name: 'USD Coin', displayBalance: '100', address: USDC, chainId: 1 },
+        { symbol: 'OBS', name: 'Obscure', displayBalance: '999', address: OBSCURE, chainId: 1 }
+      ]
+    })
+    mockUseRates.mockReturnValue({
+      [USDC]: { usd: { price: 1.0, change24hr: 0 } }
+      // OBSCURE has no rate entry
+    })
+
+    render(<PortfolioView />)
+
+    // Only OBSCURE should show "—" (appears twice: once in chain section, once in account section)
+    const dashes = screen.getAllByText('—')
+    expect(dashes.length).toBe(2)
+
+    // ETH ($2000) + USDC ($100) = $2100 total
+    const totalMatches = screen.getAllByText('$2,100')
+    expect(totalMatches.length).toBeGreaterThan(0)
+  })
+
+  it('aggregates USD values from ERC-20 tokens across multiple accounts', () => {
+    const USDC = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+
+    mockUseAllBalances.mockReturnValue({
+      '0xabc123': [
+        { symbol: 'USDC', name: 'USD Coin', displayBalance: '1000', address: USDC, chainId: 1 }
+      ],
+      '0xdef456': [
+        { symbol: 'USDC', name: 'USD Coin', displayBalance: '2000', address: USDC, chainId: 1 }
+      ]
+    })
+    mockUseAccounts.mockReturnValue({
+      '0xabc123': { address: '0xabc123', name: 'Alice' },
+      '0xdef456': { address: '0xdef456', name: 'Bob' }
+    })
+    mockUseNetworksMeta.mockReturnValue({
+      '1': { nativeCurrency: { usd: { price: 2000 } } }
+    })
+    mockUseRates.mockReturnValue({
+      [USDC]: { usd: { price: 1.0, change24hr: 0 } }
+    })
+
+    render(<PortfolioView />)
+
+    // Total: 1000 + 2000 = $3,000
+    const totalMatches = screen.getAllByText('$3,000')
+    expect(totalMatches.length).toBeGreaterThan(0)
+
+    // No dashes since USDC has a rate
+    expect(screen.queryAllByText('—').length).toBe(0)
+  })
+
+  it('shows USD for ERC-20 tokens on multiple chains', () => {
+    const USDC_MAINNET = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+    const USDC_OPTIMISM = '0x7f5c764cbc14f9669b88837ca1490cca17c31607'
+
+    mockUseAllBalances.mockReturnValue({
+      '0xabc123': [
+        { symbol: 'USDC', name: 'USD Coin', displayBalance: '1000', address: USDC_MAINNET, chainId: 1 },
+        { symbol: 'USDC', name: 'USD Coin', displayBalance: '500', address: USDC_OPTIMISM, chainId: 10 }
+      ]
+    })
+    mockUseNetworks.mockReturnValue({
+      '1': { name: 'Ethereum' },
+      '10': { name: 'Optimism' }
+    })
+    mockUseNetworksMeta.mockReturnValue({
+      '1': { nativeCurrency: { usd: { price: 2000 } } },
+      '10': { nativeCurrency: { usd: { price: 2000 } } }
+    })
+    mockUseRates.mockReturnValue({
+      [USDC_MAINNET]: { usd: { price: 1.0, change24hr: 0 } },
+      [USDC_OPTIMISM]: { usd: { price: 1.0, change24hr: 0 } }
+    })
+
+    render(<PortfolioView />)
+
+    // No dashes — all tokens have prices
+    expect(screen.queryAllByText('—').length).toBe(0)
+
+    // Total: $1000 + $500 = $1,500
+    const totalMatches = screen.getAllByText('$1,500')
+    expect(totalMatches.length).toBeGreaterThan(0)
+  })
+
+  it('handles mix of priced and unpriced tokens without "$?" anywhere', () => {
+    const USDC = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+
+    mockUseAllBalances.mockReturnValue({
+      '0xabc123': [
+        { symbol: 'ETH', name: 'Ether', displayBalance: '1', address: NATIVE_CURRENCY, chainId: 1 },
+        { symbol: 'USDC', name: 'USD Coin', displayBalance: '500', address: USDC, chainId: 1 },
+        { symbol: 'SCAM', name: 'Scam Token', displayBalance: '999999', address: '0xscam', chainId: 1 },
+        { symbol: 'DUST', name: 'Dust Token', displayBalance: '0.0001', address: '0xdust', chainId: 1 }
+      ]
+    })
+    mockUseRates.mockReturnValue({
+      [USDC]: { usd: { price: 1.0, change24hr: 0 } }
+    })
+
+    render(<PortfolioView />)
+
+    // "$?" should NEVER appear
+    expect(screen.queryByText('$?')).toBeNull()
+    expect(screen.queryByText(/\$\?/)).toBeNull()
+  })
+})

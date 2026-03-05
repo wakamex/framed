@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useAllBalances, useAccounts, useNetworks, useNetworksMeta, useRates } from '../../store'
 import { useCompact } from '../../hooks/useCompact'
 import { NATIVE_CURRENCY } from '../../../resources/constants'
+import { formatSmallNumber } from '../../../resources/domain/balance'
 import type { Balance } from '../../types'
 
 interface AggregatedBalance {
@@ -13,6 +14,8 @@ interface AggregatedBalance {
 }
 
 function formatUsd(value: number): string {
+  const small = formatSmallNumber(value)
+  if (small) return `$${small}`
   const decimals = value >= 100 ? 0 : 2
   return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
