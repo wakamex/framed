@@ -1498,6 +1498,87 @@ app.whenReady().then(async () => {
     if (!validateScreenshot(lightPng, lightName)) failures++
   }
 
+  // Light mode: request overlay screenshots
+  console.log('\n[Light Mode] Capturing request overlay screenshots...')
+
+  // light-request-overlay: navigate to accounts, click Main Account to show transaction overlay
+  try {
+    await win.webContents.executeJavaScript(`
+      (() => {
+        const buttons = document.querySelectorAll('nav button');
+        if (buttons[0]) { buttons[0].click(); return 'clicked accounts nav'; }
+        return 'no nav button';
+      })()
+    `)
+    await new Promise(r => setTimeout(r, 500))
+    const lightReqResult = await win.webContents.executeJavaScript(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('main button'));
+        const mainBtn = btns.find(b => b.textContent.includes('Main Account'));
+        if (mainBtn) { mainBtn.click(); return 'clicked Main Account'; }
+        return 'no Main Account button found';
+      })()
+    `)
+    console.log('[Light Request Overlay]', lightReqResult)
+  } catch (err) {
+    console.log('[Light Request Overlay Error]', err.message)
+  }
+  const lightRequestName = String(step++).padStart(2, '0') + '-light-request-overlay'
+  const lightRequestPng = await captureScreenshot(win, lightRequestName)
+  if (!validateScreenshot(lightRequestPng, lightRequestName)) failures++
+
+  // light-signature-request: navigate to Hardware Wallet account to show signTypedData overlay
+  try {
+    await win.webContents.executeJavaScript(`
+      (() => {
+        const buttons = document.querySelectorAll('nav button');
+        if (buttons[0]) { buttons[0].click(); return 'clicked accounts nav'; }
+        return 'no nav button';
+      })()
+    `)
+    await new Promise(r => setTimeout(r, 500))
+    const lightSigResult = await win.webContents.executeJavaScript(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('main button'));
+        const hwBtn = btns.find(b => b.textContent.includes('Hardware'));
+        if (hwBtn) { hwBtn.click(); return 'clicked: ' + hwBtn.textContent.substring(0, 40); }
+        return 'no Hardware Wallet button found';
+      })()
+    `)
+    console.log('[Light Signature Request]', lightSigResult)
+  } catch (err) {
+    console.log('[Light Signature Request Error]', err.message)
+  }
+  const lightSigName = String(step++).padStart(2, '0') + '-light-signature-request'
+  const lightSigPng = await captureScreenshot(win, lightSigName)
+  if (!validateScreenshot(lightSigPng, lightSigName)) failures++
+
+  // light-permit-expired: navigate to Trezor Account to show expired permit overlay
+  try {
+    await win.webContents.executeJavaScript(`
+      (() => {
+        const buttons = document.querySelectorAll('nav button');
+        if (buttons[0]) { buttons[0].click(); return 'clicked accounts nav'; }
+        return 'no nav button';
+      })()
+    `)
+    await new Promise(r => setTimeout(r, 500))
+    const lightPermitResult = await win.webContents.executeJavaScript(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('main button'));
+        const trezorBtn = btns.find(b => b.textContent.includes('Trezor'));
+        if (trezorBtn) { trezorBtn.click(); return 'clicked Trezor Account'; }
+        return 'no Trezor Account button found';
+      })()
+    `)
+    console.log('[Light Permit Expired]', lightPermitResult)
+  } catch (err) {
+    console.log('[Light Permit Expired Error]', err.message)
+  }
+  const lightPermitName = String(step++).padStart(2, '0') + '-light-permit-expired'
+  const lightPermitPng = await captureScreenshot(win, lightPermitName)
+  if (!validateScreenshot(lightPermitPng, lightPermitName)) failures++
+
   // Compact-mode screenshots: resize window to narrow width and capture key views
   console.log('\n[Compact Mode] Resizing window to 400x800...')
   // Switch back to dark colorway for compact screenshots
