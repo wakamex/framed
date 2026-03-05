@@ -64,6 +64,14 @@ function AppShell() {
 
   const updateBadge = snap.main?.updater?.badge
 
+  // Notify main process when selected account changes (triggers balance scanning)
+  const selectedAccount = snap.selectedAccount
+  useEffect(() => {
+    if (selectedAccount) {
+      actions.setSigner(selectedAccount as string)
+    }
+  }, [selectedAccount])
+
   // Close sidebar when switching views on compact layout
   const handleViewChange = (view: string) => {
     setViewAction(view)

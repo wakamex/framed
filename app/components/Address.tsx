@@ -24,8 +24,11 @@ export default function Address({ address, full, className = '' }: AddressProps)
   }
 
   return (
-    <button
-      onClick={copy}
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={(e) => { e.stopPropagation(); copy() }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); copy() } }}
       className={`font-mono text-sm cursor-pointer hover:text-gray-200 transition-colors ${className}`}
       title={copied ? 'Copied!' : checksummed}
     >
@@ -34,6 +37,6 @@ export default function Address({ address, full, className = '' }: AddressProps)
       ) : (
         display
       )}
-    </button>
+    </span>
   )
 }
