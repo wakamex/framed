@@ -1223,6 +1223,44 @@ const interactions = {
       })()`
     },
     {
+      name: 'chain-discovery-search',
+      js: `(() => {
+        // Wait for chainlist to load, then type 'Polygon' into the search field
+        return new Promise(resolve => setTimeout(() => {
+          const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+          const inputs = Array.from(document.querySelectorAll('input'));
+          const searchInput = inputs.find(i => i.placeholder?.toLowerCase().includes('search'));
+          if (searchInput) {
+            nativeSetter.call(searchInput, 'Polygon');
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+            resolve('typed Polygon in chain search, inputs found: ' + inputs.length);
+          } else {
+            resolve('no search input found, inputs: ' + inputs.length);
+          }
+        }, 800));
+      })()`
+    },
+    {
+      name: 'chain-discovery-already-added',
+      js: `(() => {
+        // Search for 'Ethereum' — it's already in the wallet so should show 'Added' badge
+        return new Promise(resolve => setTimeout(() => {
+          const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+          const inputs = Array.from(document.querySelectorAll('input'));
+          const searchInput = inputs.find(i => i.placeholder?.toLowerCase().includes('search'));
+          if (searchInput) {
+            nativeSetter.call(searchInput, 'Ethereum');
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+            resolve('typed Ethereum in chain search, checking for Added badge');
+          } else {
+            resolve('no search input found, inputs: ' + inputs.length);
+          }
+        }, 300));
+      })()`
+    },
+    {
       name: 'chain-toggle-on',
       js: `(() => {
         // Find the Arbitrum chain entry and its toggle button
@@ -1507,6 +1545,18 @@ app.whenReady().then(async () => {
         { name: '', address: 'not-a-hex-address', error: 'invalid checksum' }
       ]
       event.reply('main:rpc', id, JSON.stringify(null), JSON.stringify(mockWatchListResults))
+    } else if (method === 'fetchChainlist') {
+      const mockChainlist = [
+        { chainId: 1, name: 'Ethereum', nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }, rpc: ['https://mainnet.infura.io/v3/'], explorers: [{ name: 'Etherscan', url: 'https://etherscan.io' }] },
+        { chainId: 10, name: 'Optimism', nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }, rpc: ['https://mainnet.optimism.io'], explorers: [{ name: 'Optimism Explorer', url: 'https://optimistic.etherscan.io' }] },
+        { chainId: 56, name: 'BNB Smart Chain', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpc: ['https://bsc-dataseed.binance.org/'] },
+        { chainId: 137, name: 'Polygon', nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }, rpc: ['https://polygon-rpc.com'], explorers: [{ name: 'Polygonscan', url: 'https://polygonscan.com' }] },
+        { chainId: 250, name: 'Fantom Opera', nativeCurrency: { name: 'Fantom', symbol: 'FTM', decimals: 18 }, rpc: ['https://rpc.ftm.tools/'] },
+        { chainId: 8453, name: 'Base', nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }, rpc: ['https://mainnet.base.org'], explorers: [{ name: 'Basescan', url: 'https://basescan.org' }] },
+        { chainId: 42161, name: 'Arbitrum One', nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }, rpc: ['https://arb1.arbitrum.io/rpc'], explorers: [{ name: 'Arbiscan', url: 'https://arbiscan.io' }] },
+        { chainId: 43114, name: 'Avalanche C-Chain', nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 }, rpc: ['https://api.avax.network/ext/bc/C/rpc'] }
+      ]
+      event.reply('main:rpc', id, JSON.stringify(null), JSON.stringify(mockChainlist))
     } else {
       event.reply('main:rpc', id, JSON.stringify(null), JSON.stringify(null))
     }
