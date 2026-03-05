@@ -1,5 +1,4 @@
 import { proxy, useSnapshot } from 'valtio'
-import link from '../resources/link'
 import type {
   Account,
   AccountMetadata,
@@ -130,10 +129,7 @@ export function setView(view: AppState['currentView']) {
 export function setSelectedAccount(id: string | null) {
   state.selectedAccount = id
 
-  // Notify main process so it can start balance scanning for this account
-  if (id) {
-    link.rpc('setSigner', id, () => {})
-  }
+  // Main process notification is handled by the subscriber in app/index.tsx
 }
 
 // Typed selector hooks (use useSnapshot for automatic fine-grained reactivity)

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-// Mock the link module before any imports
+// Mock the link module (required by store's transitive deps)
 jest.mock('../../../resources/link', () => ({
   rpc: jest.fn(),
   send: jest.fn(),
@@ -10,7 +10,6 @@ jest.mock('../../../resources/link', () => ({
   invoke: jest.fn()
 }))
 
-const link = require('../../../resources/link')
 const { setSelectedAccount, state } = require('../../../app/store')
 
 afterEach(() => {
@@ -24,23 +23,21 @@ describe('setSelectedAccount', () => {
     expect(state.selectedAccount).toBe('0xabc')
   })
 
-  it('calls link.rpc setSigner when id is provided', () => {
-    setSelectedAccount('0xabc')
-    expect(link.rpc).toHaveBeenCalledWith('setSigner', '0xabc', expect.any(Function))
-  })
-
-  it('does not call link.rpc when id is null', () => {
-    setSelectedAccount(null)
-    expect(link.rpc).not.toHaveBeenCalled()
-  })
-
   it('clears selectedAccount when called with null', () => {
     state.selectedAccount = '0xabc'
     setSelectedAccount(null)
     expect(state.selectedAccount).toBeNull()
   })
 
-  it('does not throw (no circular dependency crash)', () => {
+  it('does not throw (no circular dependency or import crash)', () => {
     expect(() => setSelectedAccount('0xdef')).not.toThrow()
+  })
+
+  it('store module imports without errors', () => {
+    // This test catches import-time crashes (circular deps, missing globals, etc.)
+    // If store.ts imports a module that references window/DOM at load time incorrectly,
+    // the require() above would have already thrown, failing this test file entirely.
+    expect(state).toBeDefined()
+    expect(typeof setSelectedAccount).toBe('function')
   })
 })
