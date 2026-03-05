@@ -261,11 +261,10 @@ const MAX_GAS_HISTORY = 50
 export function pushGasHistory(netType: string, netId: string, gweiPrice: number) {
   const gas = (state.main.networksMeta as any)[netType][netId]?.gas
   if (!gas) return
-  if (!gas.history) gas.history = []
-  gas.history.push({ t: Date.now(), gwei: gweiPrice })
-  if (gas.history.length > MAX_GAS_HISTORY) {
-    gas.history = gas.history.slice(-MAX_GAS_HISTORY)
-  }
+  const prev = gas.history || []
+  const next = [...prev, { t: Date.now(), gwei: gweiPrice }]
+  gas.history = next.length > MAX_GAS_HISTORY ? next.slice(-MAX_GAS_HISTORY) : next
+  log.debug(`Gas history [${netId}]: ${gweiPrice.toFixed(2)} gwei (${gas.history.length} points)`)
 }
 
 export function setNativeCurrencyData(netType: string, netId: string | number, currency: any) {
