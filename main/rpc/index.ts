@@ -243,8 +243,15 @@ const rpc: Record<string, (...args: any[]) => void> = {
         results.push({ name, address })
       }
 
-      cb(null, results)
+      log.info(`Watch list: ${added.size} accounts added, ${results.length} rows processed`)
+      try {
+        cb(null, results)
+        log.info('Watch list: cb fired successfully')
+      } catch (cbErr) {
+        log.error('Watch list: cb threw', cbErr)
+      }
     } catch (err) {
+      log.error('Watch list: error', err)
       cb(err)
     }
   },
