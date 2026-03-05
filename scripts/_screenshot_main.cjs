@@ -84,6 +84,14 @@ const server = http.createServer((req, res) => {
   }
 })
 
+function generateGasHistory(min, max, count) {
+  const now = Date.now()
+  return Array.from({ length: count }, (_, i) => ({
+    t: now - (count - 1 - i) * 12000,
+    gwei: min + (max - min) * (0.5 + 0.5 * Math.sin(i * 0.6 + Math.random() * 0.3))
+  }))
+}
+
 const mockState = {
   main: {
     _version: 41,
@@ -128,10 +136,10 @@ const mockState = {
     },
     networksMeta: {
       ethereum: {
-        1: { blockHeight: 19500000, icon: '', primaryColor: '#627EEA', nativeCurrency: { symbol: 'ETH', name: 'Ether', icon: '', decimals: 18, usd: { price: 3200, change24hr: 1.5 } }, gas: { price: { selected: 'standard', levels: { slow: '20', standard: '25', fast: '30', asap: '50', custom: '' } } } },
-        10: { blockHeight: 115000000, icon: '', primaryColor: '#FF0420', nativeCurrency: { symbol: 'ETH', name: 'Ether', icon: '', decimals: 18, usd: { price: 3200, change24hr: 1.5 } }, gas: { price: { selected: 'standard', levels: { slow: '0.001', standard: '0.002', fast: '0.003', asap: '0.005', custom: '' } } } },
-        137: { blockHeight: 54000000, icon: '', primaryColor: '#8247E5', nativeCurrency: { symbol: 'MATIC', name: 'Polygon', icon: '', decimals: 18, usd: { price: 0.85, change24hr: -0.3 } }, gas: { price: { selected: 'standard', levels: { slow: '30', standard: '50', fast: '80', asap: '120', custom: '' } } } },
-        42161: { blockHeight: 180000000, icon: '', primaryColor: '#28A0F0', nativeCurrency: { symbol: 'ETH', name: 'Ether', icon: '', decimals: 18, usd: { price: 3200, change24hr: 1.5 } }, gas: { price: { selected: 'standard', levels: { slow: '0.1', standard: '0.1', fast: '0.2', asap: '0.5', custom: '' } } } }
+        1: { blockHeight: 19500000, icon: '', primaryColor: '#627EEA', rpcHealth: { status: 'healthy', latencyMs: 38, lastChecked: Date.now(), consecutiveErrors: 0 }, nativeCurrency: { symbol: 'ETH', name: 'Ether', icon: '', decimals: 18, usd: { price: 3200, change24hr: 1.5 } }, gas: { price: { selected: 'fast', levels: { fast: '0x' + (25e9).toString(16) }, fees: { nextBaseFee: '0x' + (12e9).toString(16), maxPriorityFeePerGas: '0x' + (2e9).toString(16) } }, history: generateGasHistory(20, 35, 20), samples: [{ label: 'Send ETH', estimates: { low: { gasEstimate: '0x5208', cost: { usd: 1.68 } } } }, { label: 'Token Transfer', estimates: { low: { gasEstimate: '0xFDE8', cost: { usd: 5.20 } } } }] } },
+        10: { blockHeight: 115000000, icon: '', primaryColor: '#FF0420', rpcHealth: { status: 'healthy', latencyMs: 52, lastChecked: Date.now(), consecutiveErrors: 0 }, nativeCurrency: { symbol: 'ETH', name: 'Ether', icon: '', decimals: 18, usd: { price: 3200, change24hr: 1.5 } }, gas: { price: { selected: 'fast', levels: { fast: '0x' + (0.002e9).toString(16) }, fees: { nextBaseFee: '0x' + (0.001e9).toString(16), maxPriorityFeePerGas: '0x' + (0.001e9).toString(16) } }, history: generateGasHistory(0.001, 0.004, 20), samples: [{ label: 'Send ETH', estimates: { low: { gasEstimate: '0x5208', cost: { usd: 0.001 } } } }] } },
+        137: { blockHeight: 54000000, icon: '', primaryColor: '#8247E5', rpcHealth: { status: 'healthy', latencyMs: 85, lastChecked: Date.now(), consecutiveErrors: 0 }, nativeCurrency: { symbol: 'MATIC', name: 'Polygon', icon: '', decimals: 18, usd: { price: 0.85, change24hr: -0.3 } }, gas: { price: { selected: 'fast', levels: { fast: '0x' + (80e9).toString(16) }, fees: { nextBaseFee: '0x' + (50e9).toString(16), maxPriorityFeePerGas: '0x' + (30e9).toString(16) } }, history: generateGasHistory(40, 120, 20), samples: [{ label: 'Send ETH', estimates: { low: { gasEstimate: '0x5208', cost: { usd: 0.0014 } } } }] } },
+        42161: { blockHeight: 180000000, icon: '', primaryColor: '#28A0F0', nativeCurrency: { symbol: 'ETH', name: 'Ether', icon: '', decimals: 18, usd: { price: 3200, change24hr: 1.5 } }, gas: { price: { selected: 'fast', levels: { fast: '0x' + (0.1e9).toString(16) }, fees: { nextBaseFee: '0x' + (0.05e9).toString(16), maxPriorityFeePerGas: '0x' + (0.05e9).toString(16) } }, history: generateGasHistory(0.05, 0.2, 20), samples: [{ label: 'Send ETH', estimates: { low: { gasEstimate: '0x5208', cost: { usd: 0.002 } } } }] } }
       }
     },
     accounts: {
