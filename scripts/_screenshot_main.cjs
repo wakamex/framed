@@ -639,6 +639,52 @@ app.whenReady().then(async () => {
     if (!validateScreenshot(lightPng, lightName)) failures++
   }
 
+  // Compact-mode screenshots: resize window to narrow width and capture key views
+  console.log('\n[Compact Mode] Resizing window to 400x800...')
+  // Switch back to dark colorway for compact screenshots
+  win.webContents.send(
+    'main:action',
+    'stateSync',
+    JSON.stringify([{ updates: [{ path: 'main.colorway', value: 'dark' }] }])
+  )
+  win.setContentSize(400, 800)
+  // Wait for React to re-render with compact layout
+  await new Promise(r => setTimeout(r, 800))
+
+  const compactViews = [
+    { name: 'accounts', navIndex: 0 },
+    { name: 'portfolio', navIndex: 1 },
+    { name: 'chains', navIndex: 6 },
+    { name: 'settings', navIndex: 8 }
+  ]
+
+  for (const { name: compactViewName, navIndex } of compactViews) {
+    try {
+      const result = await win.webContents.executeJavaScript(`
+        (() => {
+          const buttons = document.querySelectorAll('nav button');
+          if (buttons[${navIndex}]) {
+            buttons[${navIndex}].click();
+            return 'clicked nav ${navIndex}: ' + buttons[${navIndex}].textContent;
+          }
+          return 'no nav button at index ${navIndex}, total: ' + buttons.length;
+        })()
+      `)
+      console.log('[Compact Nav]', result)
+    } catch (err) {
+      console.log('[Compact Nav Error]', err.message)
+    }
+
+    const compactName = String(step++).padStart(2, '0') + '-compact-' + compactViewName
+    const compactPng = await captureScreenshot(win, compactName)
+    if (!validateScreenshot(compactPng, compactName)) failures++
+  }
+
+  // Reset window size back to original
+  console.log('[Compact Mode] Resetting window to 1200x800...')
+  win.setContentSize(1200, 800)
+  await new Promise(r => setTimeout(r, 500))
+
   // Summary
   console.log('\n' + '='.repeat(60))
   console.log(`Screenshots: ${step - 1} captured, ${failures} failures`)
