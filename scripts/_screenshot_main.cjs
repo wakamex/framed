@@ -274,6 +274,18 @@ const interactions = {
       })()`
     }
   ],
+  signers: [
+    {
+      name: 'signer-detail',
+      js: `(() => {
+        // Click the first signer button in the list to reveal the detail panel
+        const mainBtns = Array.from(document.querySelectorAll('main button'));
+        const signerBtn = mainBtns.find(b => b.textContent.match(/hot|ledger|trezor|lattice|seed/i));
+        if (signerBtn) { signerBtn.click(); return 'clicked signer: ' + signerBtn.textContent.substring(0, 60); }
+        return 'no signer button found, main buttons: ' + mainBtns.map(b => b.textContent.trim()).join(', ');
+      })()`
+    }
+  ],
   chains: [
     {
       name: 'chain-detail',
