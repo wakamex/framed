@@ -129,7 +129,7 @@ export default function (chainId: number, eth: EthereumProvider) {
 
   return {
     call,
-    batchCall: async function <R, T>(calls: Call<R, T>[], batchSize = 2000) {
+    batchCall: async function <R, T>(calls: Call<R, T>[], batchSize = 500) {
       const numBatches = Math.ceil(calls.length / batchSize)
 
       const fetches = [...Array(numBatches).keys()].map(async (_, batchIndex) => {
