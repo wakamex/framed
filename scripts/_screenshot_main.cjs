@@ -174,7 +174,25 @@ const mockState = {
         address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
         status: 'ok',
         signer: 'ledger-1',
-        requests: {},
+        requests: {
+          'req-sig-1': {
+            handlerId: 'req-sig-1',
+            type: 'signTypedData',
+            status: 'pending',
+            origin: 'app.aave.com',
+            account: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+            created: Date.now(),
+            payload: {
+              jsonrpc: '2.0', id: 2, method: 'eth_signTypedData_v4',
+              params: ['0xabcdefabcdefabcdefabcdefabcdefabcdefabcd', JSON.stringify({
+                types: { EIP712Domain: [{ name: 'name', type: 'string' }], Permit: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }, { name: 'value', type: 'uint256' }, { name: 'deadline', type: 'uint256' }] },
+                primaryType: 'Permit',
+                domain: { name: 'USD Coin' },
+                message: { owner: '0xabcdef...', spender: '0x1111...', value: '1000000000', deadline: String(Math.floor(Date.now()/1000) + 3600) }
+              })]
+            }
+          }
+        },
         created: '2024-03-15'
       }
     },
@@ -266,6 +284,20 @@ const interactions = {
         const addBtn = buttons.find(b => b.textContent.trim() === '+ Add' || b.textContent.trim() === 'Add');
         if (addBtn) { addBtn.click(); return 'clicked: ' + addBtn.textContent.trim(); }
         return 'no + Add button found, buttons: ' + buttons.map(b => b.textContent.trim()).join(', ');
+      })()`
+    },
+    {
+      name: 'signature-request',
+      js: `(() => {
+        // Close the add-account panel (Cancel) then click Hardware Wallet to show its signature request overlay
+        const cancelBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Cancel');
+        if (cancelBtn) cancelBtn.click();
+        return new Promise(resolve => setTimeout(() => {
+          const btns = Array.from(document.querySelectorAll('main button'));
+          const hwBtn = btns.find(b => b.textContent.includes('Hardware'));
+          if (hwBtn) { hwBtn.click(); resolve('clicked: ' + hwBtn.textContent.substring(0, 40)); }
+          else resolve('no Hardware Wallet button found, buttons: ' + btns.map(b => b.textContent.substring(0, 20)).join(' | '));
+        }, 300));
       })()`
     }
   ],
