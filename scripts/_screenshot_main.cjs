@@ -342,6 +342,21 @@ const interactions = {
         return 'no discover button found, buttons: ' + btns.map(b => b.textContent.trim().substring(0, 20)).join(', ');
       })()`
     }
+  ],
+  settings: [
+    {
+      name: 'shortcut-configurator',
+      js: `(() => {
+        // Scroll to find the keyboard shortcut section
+        const main = document.querySelector('main');
+        if (main) main.scrollTop = 0;
+        // Find the 'Change' button near the shortcut display
+        const btns = Array.from(document.querySelectorAll('button'));
+        const changeBtn = btns.find(b => b.textContent.trim() === 'Change');
+        if (changeBtn) { changeBtn.click(); return 'clicked Change button'; }
+        return 'no Change button found, buttons: ' + btns.map(b => b.textContent.trim().substring(0, 20)).join(', ');
+      })()`
+    }
   ]
 }
 
