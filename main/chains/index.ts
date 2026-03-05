@@ -738,6 +738,7 @@ class Chains extends EventEmitter {
     })
 
     subscribe(state, updateConnections)
+    updateConnections()
   }
 
   send(payload: JsonRpcPayload, res: ResCallback, targetChain?: ChainTarget) {
