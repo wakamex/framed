@@ -518,6 +518,42 @@ const interactions = {
       })()`
     },
     {
+      name: 'add-account-privatekey-form',
+      js: `(() => {
+        // Navigate back to type selector first
+        const backBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Back') || b.textContent.includes('←'));
+        if (backBtn) backBtn.click();
+        return new Promise(resolve => setTimeout(() => {
+          const btns = Array.from(document.querySelectorAll('button'));
+          const pkBtn = btns.find(b => b.textContent.includes('Private Key'));
+          if (pkBtn) { pkBtn.click(); resolve('clicked Private Key'); }
+          else resolve('no Private Key button found');
+        }, 300));
+      })()`
+    },
+    {
+      name: 'add-account-privatekey-with-password',
+      js: `(() => {
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        const inputs = Array.from(document.querySelectorAll('input'));
+        // Fill private key input (first input, type=password with monospace)
+        if (inputs[0]) {
+          nativeSetter.call(inputs[0], '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
+          inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        // Fill passwords with mismatch for validation
+        if (inputs[1]) {
+          nativeSetter.call(inputs[1], 'testpass123');
+          inputs[1].dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (inputs[2]) {
+          nativeSetter.call(inputs[2], 'differentpass');
+          inputs[2].dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        return 'filled private key and mismatched passwords, inputs: ' + inputs.length;
+      })()`
+    },
+    {
       name: 'add-account-watch-form',
       js: `(() => {
         // First ensure we're on the add-account panel
