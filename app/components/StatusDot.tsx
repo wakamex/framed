@@ -12,6 +12,7 @@ const statusColors: Record<string, string> = {
   locked: 'bg-yellow-400',
   loading: 'bg-yellow-400',
   standby: 'bg-yellow-400',
+  watch: 'bg-blue-400',
   disconnected: 'bg-red-400',
   off: 'bg-gray-600',
   error: 'bg-red-400',

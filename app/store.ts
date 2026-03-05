@@ -66,6 +66,7 @@ export interface MainState {
     dontRemind: string[]
     badge?: { type: string; version: string }
   }
+  rates: Record<string, { usd: { price: number; change24hr: number } }>
   gasAlerts: Record<string, GasAlert>
   txHistory: Record<string, TxRecord[]>
 }
@@ -153,6 +154,7 @@ export const useSelectedAccount = () => {
 }
 export const useAccountsMeta = () => useSnapshot(state).main?.accountsMeta ?? {}
 export const useAllBalances = () => useSnapshot(state).main?.balances ?? {}
+export const useRates = () => useSnapshot(state).main?.rates ?? {}
 export const useGasAlerts = () => useSnapshot(state).main?.gasAlerts ?? {}
 
 // Derived selectors for requests across all accounts

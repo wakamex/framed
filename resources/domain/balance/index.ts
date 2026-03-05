@@ -43,14 +43,16 @@ export function createBalance(rawBalance: Balance, quote?: Rate): DisplayedBalan
   const totalValue = balance.times(usdRate)
   const balanceDecimals = Math.max(2, usdRate.shiftedBy(1).toFixed(0, BigNumber.ROUND_DOWN).length)
 
+  const safeTotalValue = totalValue.isNaN() ? BigNumber(0) : totalValue
+
   return {
     ...rawBalance,
     usdRate: quote as Rate,
-    displayBalance: formatBalance(balance, totalValue, balanceDecimals),
+    displayBalance: formatBalance(balance, safeTotalValue, balanceDecimals),
     price: formatUsdRate(usdRate),
     priceChange: !usdRate.isZero() && !usdRate.isNaN() && change24hr.toFixed(2),
-    totalValue: totalValue.isNaN() ? BigNumber(0) : totalValue,
-    displayValue: totalValue.isZero() ? '0' : formatUsdRate(totalValue, 0)
+    totalValue: safeTotalValue,
+    displayValue: safeTotalValue.isZero() ? '0' : formatUsdRate(safeTotalValue, 0)
   }
 }
 

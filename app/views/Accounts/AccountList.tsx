@@ -41,8 +41,8 @@ export default function AccountList({ onAdd }: AccountListProps) {
       ) : (
         sortedAccounts.map((account: Account) => {
           const signer = account.signer ? signers[account.signer] : null
-          const signerStatus = signer?.status ?? 'disconnected'
           const signerType = signer ? getSignerDisplayType(signer.type) : 'watch'
+          const signerStatus = signerType === 'watch' ? 'watch' : (signer?.status ?? 'disconnected')
           const metaId = Object.keys(accountsMeta).find((key) => {
             const meta = accountsMeta[key]
             return meta?.name && account.name === meta.name

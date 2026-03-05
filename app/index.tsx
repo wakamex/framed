@@ -87,7 +87,7 @@ function AppShell() {
       <div className="flex flex-1 min-h-0">
       {/* Sidebar navigation */}
       {(!compact || sidebarOpen) && (
-        <nav className={`${compact ? 'absolute inset-y-0 left-0 z-30' : ''} w-48 bg-gray-900 border-r border-gray-800 flex flex-col p-3 gap-1`}>
+        <nav className={`${compact ? 'absolute inset-y-0 left-0 z-30' : ''} w-36 bg-gray-900 border-r border-gray-800 flex flex-col p-2 gap-0.5`}>
           <div className="flex items-center justify-between px-3 py-2 mb-2">
             <span className="text-lg font-semibold text-gray-100">Framed</span>
             {compact && (

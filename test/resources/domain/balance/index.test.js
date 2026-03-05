@@ -23,11 +23,36 @@ describe('#createBalance', () => {
     expect(balance.totalValue.toNumber()).toBe(0)
   })
 
-  it('creates a balance with an unknown display value when no quote is available', () => {
+  it('creates a balance with zero display value when no quote is available', () => {
     const quote = undefined
     const balance = createBalance({ balance: '0x2ed3afa800', decimals: 18 }, quote)
 
-    expect(balance.displayValue).toBe('?')
+    expect(balance.displayValue).toBe('0')
+  })
+
+  it('displayValue never contains ? character', () => {
+    // displayValue is shown as "$displayValue" in the UI, so "?" would render as "$?"
+    const withQuote = createBalance(
+      { balance: '0xDE0B6B3A7640000', decimals: 18 },
+      { price: 2000, change24hr: 1.5 }
+    )
+    expect(withQuote.displayValue).not.toContain('?')
+
+    const withoutQuote = createBalance({ balance: '0xDE0B6B3A7640000', decimals: 18 }, undefined)
+    expect(withoutQuote.displayValue).not.toContain('?')
+
+    const zeroBalance = createBalance({ balance: '0x0', decimals: 18 }, undefined)
+    expect(zeroBalance.displayValue).not.toContain('?')
+  })
+
+  it('creates correct displayValue when quote is provided', () => {
+    // 1 ETH at $2000 = $2000
+    const balance = createBalance(
+      { balance: '0xDE0B6B3A7640000', decimals: 18 },
+      { price: 2000, change24hr: 0 }
+    )
+    expect(balance.displayValue).toBe('2,000')
+    expect(balance.totalValue.toNumber()).toBe(2000)
   })
 
   it('handles missing decimals without throwing', () => {

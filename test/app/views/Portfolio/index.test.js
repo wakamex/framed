@@ -17,12 +17,14 @@ const mockUseAllBalances = jest.fn()
 const mockUseAccounts = jest.fn()
 const mockUseNetworks = jest.fn()
 const mockUseNetworksMeta = jest.fn()
+const mockUseRates = jest.fn()
 
 jest.mock('../../../../app/store', () => ({
   useAllBalances: (...args) => mockUseAllBalances(...args),
   useAccounts: (...args) => mockUseAccounts(...args),
   useNetworks: (...args) => mockUseNetworks(...args),
-  useNetworksMeta: (...args) => mockUseNetworksMeta(...args)
+  useNetworksMeta: (...args) => mockUseNetworksMeta(...args),
+  useRates: (...args) => mockUseRates(...args)
 }))
 
 const mockUseCompact = jest.fn()
@@ -57,6 +59,7 @@ function setupDefaults() {
   mockUseNetworksMeta.mockReturnValue({
     '1': { nativeCurrency: { usd: { price: 2000 } } }
   })
+  mockUseRates.mockReturnValue({})
   mockUseCompact.mockReturnValue(false)
 }
 
@@ -74,11 +77,11 @@ describe('PortfolioView', () => {
   it('displays total portfolio value formatted as USD', () => {
     render(<PortfolioView />)
     // 1.5 ETH * $2000 = $3000; USDC has no native pricing
-    // $3,000.00 appears in portfolio total, chain total, account total, and ETH row
-    const matches = screen.getAllByText('$3,000.00')
+    // $3,000 appears in portfolio total, chain total, account total, and ETH row
+    const matches = screen.getAllByText('$3,000')
     expect(matches.length).toBeGreaterThan(0)
     // The portfolio total is in the large div
-    expect(matches[0].textContent).toBe('$3,000.00')
+    expect(matches[0].textContent).toBe('$3,000')
   })
 
   it('renders By Chain section with chain name', () => {
@@ -123,7 +126,7 @@ describe('PortfolioView', () => {
   it('calculates USD value correctly for native tokens (amount * price)', () => {
     // 1.5 ETH * $2000/ETH = $3000
     render(<PortfolioView />)
-    const matches = screen.getAllByText('$3,000.00')
+    const matches = screen.getAllByText('$3,000')
     expect(matches.length).toBeGreaterThan(0)
   })
 
@@ -295,9 +298,57 @@ describe('PortfolioView', () => {
 
     render(<PortfolioView />)
 
-    // Chain total: 1 + 2 = 3 ETH * $2000 = $6,000.00
+    // Chain total: 1 + 2 = 3 ETH * $2000 = $6,000
     // Also appears as portfolio total
-    const matches = screen.getAllByText('$6,000.00')
+    const matches = screen.getAllByText('$6,000')
     expect(matches.length).toBeGreaterThan(0)
+  })
+
+  it('uses token rates for ERC-20 USD values', () => {
+    const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+    mockUseAllBalances.mockReturnValue({
+      '0xabc123': [
+        { symbol: 'USDC', name: 'USD Coin', displayBalance: '1000', address: USDC_ADDRESS, chainId: 1 }
+      ]
+    })
+    mockUseRates.mockReturnValue({
+      [USDC_ADDRESS]: { usd: { price: 1.0, change24hr: 0 } }
+    })
+
+    render(<PortfolioView />)
+
+    // 1000 USDC * $1 = $1,000
+    const matches = screen.getAllByText('$1,000')
+    expect(matches.length).toBeGreaterThan(0)
+  })
+
+  it('shows "—" for tokens without rate data', () => {
+    mockUseAllBalances.mockReturnValue({
+      '0xabc123': [
+        { symbol: 'OBSCURE', name: 'Obscure Token', displayBalance: '500', address: '0xdeadbeef', chainId: 1 }
+      ]
+    })
+    mockUseRates.mockReturnValue({})
+
+    render(<PortfolioView />)
+
+    // No rate data → USD value should be "—"
+    const dashes = screen.getAllByText('—')
+    expect(dashes.length).toBeGreaterThan(0)
+  })
+
+  it('does not display $? for any balance', () => {
+    mockUseAllBalances.mockReturnValue({
+      '0xabc123': [
+        { symbol: 'ETH', name: 'Ether', displayBalance: '1', address: NATIVE_CURRENCY, chainId: 1 },
+        { symbol: 'UNKNOWN', name: 'Unknown', displayBalance: '100', address: '0xdeadbeef', chainId: 1 }
+      ]
+    })
+    mockUseRates.mockReturnValue({})
+
+    render(<PortfolioView />)
+
+    // "$?" should never appear in the rendered output
+    expect(screen.queryByText('$?')).toBeNull()
   })
 })

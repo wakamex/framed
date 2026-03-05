@@ -9,7 +9,8 @@ import {
   usePermissions,
   useOrigins,
   useNetworksMeta,
-  useMainState
+  useMainState,
+  useRates
 } from '../../store'
 import { actions } from '../../ipc'
 import { createBalance, sortByTotalValue, isNativeCurrency } from '../../../resources/domain/balance'
@@ -31,6 +32,7 @@ export default function AccountDetail() {
   const permissions = usePermissions(selectedId ?? '')
   const origins = useOrigins()
   const main = useMainState()
+  const rates = useRates()
   const [renaming, setRenaming] = useState(false)
   const [newName, setNewName] = useState('')
   const [confirmRemove, setConfirmRemove] = useState(false)
@@ -42,13 +44,16 @@ export default function AccountDetail() {
     return balances
       .map((b) => {
         const chainMeta = networksMeta[b.chainId]
-        const quote = isNativeCurrency(b.address) && chainMeta?.nativeCurrency?.usd
-          ? { price: chainMeta.nativeCurrency.usd.price, change24hr: chainMeta.nativeCurrency.usd.change24hr }
-          : undefined
+        let quote
+        if (isNativeCurrency(b.address) && chainMeta?.nativeCurrency?.usd) {
+          quote = { price: chainMeta.nativeCurrency.usd.price, change24hr: chainMeta.nativeCurrency.usd.change24hr }
+        } else if (rates[b.address]?.usd) {
+          quote = { price: rates[b.address].usd.price, change24hr: rates[b.address].usd.change24hr }
+        }
         return createBalance(b, quote)
       })
       .sort((a, b) => sortByTotalValue(a, b))
-  }, [balances, networksMeta])
+  }, [balances, networksMeta, rates])
 
   const totalUsd = useMemo(() => {
     return displayedBalances.reduce((sum, b) => sum + (b.totalValue?.toNumber?.() ?? 0), 0)
@@ -64,7 +69,7 @@ export default function AccountDetail() {
 
   const signer = account.signer ? signers[account.signer] : null
   const signerType = signer ? getSignerDisplayType(signer.type) : 'watch'
-  const signerStatus = signer?.status ?? 'disconnected'
+  const signerStatus = signerType === 'watch' ? 'watch' : (signer?.status ?? 'disconnected')
   const isHardware = signer ? isHardwareSigner(signer.type) : false
 
   const handleRename = () => {
@@ -151,7 +156,7 @@ export default function AccountDetail() {
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Balances</h3>
           {totalUsd > 0 && (
-            <span className="text-sm text-gray-300">${totalUsd.toFixed(2)}</span>
+            <span className="text-sm text-gray-300">${Math.round(totalUsd).toLocaleString()}</span>
           )}
         </div>
         {displayedBalances.length === 0 ? (

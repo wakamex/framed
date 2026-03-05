@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useAllBalances, useAccounts, useNetworks, useNetworksMeta } from '../../store'
+import { useAllBalances, useAccounts, useNetworks, useNetworksMeta, useRates } from '../../store'
 import { useCompact } from '../../hooks/useCompact'
 import { NATIVE_CURRENCY } from '../../../resources/constants'
 import type { Balance } from '../../types'
@@ -13,7 +13,8 @@ interface AggregatedBalance {
 }
 
 function formatUsd(value: number): string {
-  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
+  const decimals = value >= 100 ? 0 : 2
+  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
 function formatBalance(value: number): string {
@@ -48,6 +49,7 @@ export default function PortfolioView() {
   const accounts = useAccounts()
   const networks = useNetworks()
   const networksMeta = useNetworksMeta()
+  const rates = useRates()
   const compact = useCompact()
 
   const { totalUsd, byChain, byAccount } = useMemo(() => {
@@ -78,7 +80,9 @@ export default function PortfolioView() {
 
         const isNative = bal.address === NATIVE_CURRENCY
         const chainMeta = networksMeta[String(bal.chainId)]
-        const usdPrice = isNative ? (chainMeta?.nativeCurrency?.usd?.price ?? null) : null
+        const usdPrice = isNative
+          ? (chainMeta?.nativeCurrency?.usd?.price ?? null)
+          : (rates[bal.address]?.usd?.price ?? null)
         const usdValue = usdPrice != null ? amount * usdPrice : null
 
         const entry: AggregatedBalance = {
@@ -122,7 +126,7 @@ export default function PortfolioView() {
       .sort(([, a], [, b]) => b.totalUsd - a.totalUsd)
 
     return { totalUsd, byChain, byAccount }
-  }, [allBalances, accounts, networks, networksMeta])
+  }, [allBalances, accounts, networks, networksMeta, rates])
 
   const hasBalances = byChain.length > 0 || byAccount.length > 0
 
