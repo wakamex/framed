@@ -727,6 +727,28 @@ const interactions = {
       })()`
     },
     {
+      name: 'contact-edit-modal',
+      js: `(() => {
+        // Close any open modal first, then click Edit on a contact
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        return new Promise(resolve => setTimeout(() => {
+          // Find and click the Edit button on a contact entry
+          const btns = Array.from(document.querySelectorAll('button'));
+          const editBtn = btns.find(b =>
+            b.textContent.trim() === 'Edit' ||
+            b.textContent.trim() === 'edit' ||
+            b.getAttribute('aria-label')?.includes('edit') ||
+            b.getAttribute('title')?.includes('Edit')
+          );
+          if (editBtn) { editBtn.click(); resolve('clicked Edit button'); return; }
+          // Fallback: look for pencil/edit icon buttons
+          const iconBtns = btns.filter(b => b.querySelector('svg') && b.textContent.trim().length < 3);
+          if (iconBtns.length > 0) { iconBtns[0].click(); resolve('clicked icon button (likely edit)'); return; }
+          resolve('no Edit button found, buttons: ' + btns.map(b => b.textContent.trim().substring(0, 20)).join(', '));
+        }, 300));
+      })()`
+    },
+    {
       name: 'contact-delete-confirmation',
       js: `(() => {
         // Close the edit modal
