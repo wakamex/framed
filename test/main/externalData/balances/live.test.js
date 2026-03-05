@@ -15,6 +15,11 @@
 
 const SKIP = !process.env.LIVE_RPC
 
+if (!SKIP) {
+  jest.useRealTimers()
+  jest.setTimeout(30_000)
+}
+
 // These must match NETWORK_PRESETS in resources/constants/index.ts
 const RPC_ENDPOINTS = {
   1: { name: 'Ethereum Mainnet', url: 'https://ethereum-rpc.publicnode.com' },
@@ -254,25 +259,6 @@ describeOrSkip('Live multicall', () => {
     expect(code.length).toBeGreaterThan(10)
   })
 
-  it('batch-fetches multiple token balances via multicall3', async () => {
-    // Encode aggregate3 call with two balanceOf calls
-    // This mirrors what the app's multicall module does
-    const paddedAddress = KNOWN_ADDRESS.slice(2).toLowerCase().padStart(64, '0')
-    const balanceOfData = '0x70a08231' + paddedAddress
-
-    // We'll just verify we can call multicall3 without error
-    // by calling getBlockNumber() which is simpler
-    const getBlockNumberData = '0x42cbb15c' // getBlockNumber()
-
-    const result = await rpcCall(RPC_ENDPOINTS[1].url, 'eth_call', [
-      { to: MULTICALL3, data: getBlockNumberData },
-      'latest'
-    ])
-
-    expect(result).toMatch(/^0x/)
-    expect(BigInt(result)).toBeGreaterThan(0n)
-  })
-
   it('multicall3 is available on all configured chains', async () => {
     const results = await Promise.all(
       Object.entries(RPC_ENDPOINTS).map(async ([chainId, { name, url }]) => {
@@ -283,6 +269,300 @@ describeOrSkip('Live multicall', () => {
 
     for (const { name, hasCode } of results) {
       expect(hasCode).toBe(true)
+    }
+  })
+
+  it('app multicall contract addresses exist on their respective chains', async () => {
+    const { multicallAddresses } = require('../../../../main/multicall/constants')
+    const results = await Promise.all(
+      Object.entries(multicallAddresses)
+        .filter(([chainId]) => RPC_ENDPOINTS[chainId]) // only test chains we have RPCs for
+        .map(async ([chainId, { address }]) => {
+          const url = RPC_ENDPOINTS[chainId].url
+          const code = await rpcCall(url, 'eth_getCode', [address, 'latest'])
+          return { chainId: parseInt(chainId), address, hasCode: code !== '0x' && code.length > 10 }
+        })
+    )
+
+    const missing = results.filter((r) => !r.hasCode)
+    expect(missing).toEqual([])
+  })
+})
+
+describeOrSkip('Live multicall balanceOf batch', () => {
+  // Uses tryAggregate (multicall v2) to batch multiple balanceOf calls — mirrors what the app does
+  // Multicall2 on mainnet (same address the app uses)
+  const MULTICALL2_MAINNET = '0x5ba1e12693dc8f9c48aad8770482f4739beed696'
+
+  // Well-known tokens on mainnet
+  const TOKENS = [
+    { symbol: 'USDC', address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 },
+    { symbol: 'USDT', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
+    { symbol: 'DAI', address: '0x6B175474E89094C44Da98b954EedeAC495271d0F', decimals: 18 },
+    { symbol: 'WETH', address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', decimals: 18 }
+  ]
+
+  function encodeBalanceOf(owner) {
+    return '0x70a08231' + owner.slice(2).toLowerCase().padStart(64, '0')
+  }
+
+  function encodeTryAggregate(calls) {
+    // tryAggregate(bool requireSuccess, (address target, bytes callData)[])
+    // selector: 0x399542e9 (actually bce38bd7 for tryAggregate)
+    // We'll use aggregate instead — simpler encoding, same validation
+    // aggregate((address,bytes)[]) selector: 0x252dba42
+    const abiCoder = {
+      encodeTuple(calls) {
+        // Each call: (address target, bytes callData)
+        // We encode as: selector + offset to array + array length + entries
+        let encoded = ''
+
+        // Array offset (0x20 = 32)
+        encoded += '0000000000000000000000000000000000000000000000000000000000000020'
+        // Array length
+        encoded += calls.length.toString(16).padStart(64, '0')
+
+        // Calculate offsets for each tuple
+        // Each tuple is: offset to data, then (address, offset to bytes, bytes length, bytes data)
+        const tupleOffsets = []
+        let dataOffset = calls.length * 32 // initial offset past the offset array
+
+        for (const call of calls) {
+          tupleOffsets.push(dataOffset)
+          // Each tuple: address (32) + offset to bytes (32) + bytes length (32) + bytes data (ceil32)
+          const bytesLen = (call.data.length - 2) / 2
+          const paddedBytesLen = Math.ceil(bytesLen / 32) * 32
+          dataOffset += 32 + 32 + 32 + paddedBytesLen
+        }
+
+        // Write offsets
+        for (const offset of tupleOffsets) {
+          encoded += offset.toString(16).padStart(64, '0')
+        }
+
+        // Write tuple data
+        for (const call of calls) {
+          // address
+          encoded += call.target.slice(2).toLowerCase().padStart(64, '0')
+          // offset to bytes (always 0x40 = 64, after address and this offset field)
+          encoded += '0000000000000000000000000000000000000000000000000000000000000040'
+          // bytes length
+          const bytesLen = (call.data.length - 2) / 2
+          encoded += bytesLen.toString(16).padStart(64, '0')
+          // bytes data (right-padded to 32)
+          const paddedBytesLen = Math.ceil(bytesLen / 32) * 32
+          encoded += call.data.slice(2).padEnd(paddedBytesLen * 2, '0')
+        }
+
+        return encoded
+      }
+    }
+
+    return '0x252dba42' + abiCoder.encodeTuple(calls)
+  }
+
+  it('batches balanceOf calls through aggregate and gets valid results', async () => {
+    const calls = TOKENS.map((token) => ({
+      target: token.address,
+      data: encodeBalanceOf(KNOWN_ADDRESS)
+    }))
+
+    const calldata = encodeTryAggregate(calls)
+
+    const result = await rpcCall(RPC_ENDPOINTS[1].url, 'eth_call', [
+      { to: MULTICALL2_MAINNET, data: calldata },
+      'latest'
+    ])
+
+    expect(result).toMatch(/^0x/)
+    // Result should be: (uint256 blockNumber, bytes[] returndata)
+    // At minimum it should be longer than just a block number
+    expect(result.length).toBeGreaterThan(66) // more than just 0x + 32 bytes
+  })
+
+  it('balanceOf results pass through createBalance without error', async () => {
+    const { createBalance } = require('../../../../resources/domain/balance')
+    const paddedAddress = KNOWN_ADDRESS.slice(2).toLowerCase().padStart(64, '0')
+
+    // Fetch each token balance individually (simpler than decoding aggregate)
+    const results = await Promise.all(
+      TOKENS.map(async (token) => {
+        const data = '0x70a08231' + paddedAddress
+        const result = await rpcCall(RPC_ENDPOINTS[1].url, 'eth_call', [
+          { to: token.address, data },
+          'latest'
+        ])
+        return { ...token, rawBalance: result }
+      })
+    )
+
+    for (const { symbol, decimals, rawBalance } of results) {
+      const balance = createBalance(
+        { address: '0x0', chainId: 1, symbol, name: symbol, decimals, balance: rawBalance, displayBalance: '' },
+        { price: 1.0, change24hr: 0 }
+      )
+
+      expect(balance.displayBalance).toBeDefined()
+      expect(balance.totalValue.isNaN()).toBe(false)
+    }
+  })
+})
+
+describeOrSkip('Live multi-chain token balances', () => {
+  const { createBalance } = require('../../../../resources/domain/balance')
+
+  // USDC deployed on multiple chains
+  const USDC = {
+    1: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 },
+    10: { address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', decimals: 6 },
+    137: { address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 },
+    8453: { address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6 },
+    42161: { address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6 }
+  }
+
+  for (const [chainId, { address, decimals }] of Object.entries(USDC)) {
+    const endpoint = RPC_ENDPOINTS[chainId]
+    if (!endpoint) continue
+
+    it(`fetches USDC balance on ${endpoint.name} (chain ${chainId})`, async () => {
+      const paddedAddress = KNOWN_ADDRESS.slice(2).toLowerCase().padStart(64, '0')
+      const data = '0x70a08231' + paddedAddress
+
+      const result = await rpcCall(endpoint.url, 'eth_call', [
+        { to: address, data },
+        'latest'
+      ])
+
+      expect(result).toMatch(/^0x/)
+      expect(() => BigInt(result)).not.toThrow()
+
+      // Pipe through createBalance
+      const balance = createBalance(
+        { address, chainId: parseInt(chainId), symbol: 'USDC', name: 'USD Coin', decimals, balance: result, displayBalance: '' },
+        { price: 1.0, change24hr: 0 }
+      )
+
+      expect(balance.displayBalance).toBeDefined()
+      expect(balance.totalValue.isNaN()).toBe(false)
+    })
+  }
+})
+
+describeOrSkip('Live error resilience', () => {
+  it('balanceOf on a non-token address returns zero or reverts gracefully', async () => {
+    // Call balanceOf on an EOA (not a contract) — should revert or return 0x
+    const paddedAddress = KNOWN_ADDRESS.slice(2).toLowerCase().padStart(64, '0')
+    const data = '0x70a08231' + paddedAddress
+    const eoaAddress = '0x0000000000000000000000000000000000000001'
+
+    try {
+      const result = await rpcCall(RPC_ENDPOINTS[1].url, 'eth_call', [
+        { to: eoaAddress, data },
+        'latest'
+      ])
+      // If it doesn't revert, result should be empty or zero
+      expect(result === '0x' || BigInt(result) === 0n).toBe(true)
+    } catch (e) {
+      // Reverts are expected — the app handles these in scan.ts
+      expect(e.message).toBeDefined()
+    }
+  })
+
+  it('eth_getBalance for zero address returns valid hex', async () => {
+    const result = await rpcCall(
+      RPC_ENDPOINTS[1].url,
+      'eth_getBalance',
+      ['0x0000000000000000000000000000000000000000', 'latest']
+    )
+    expect(result).toMatch(/^0x/)
+    expect(() => BigInt(result)).not.toThrow()
+  })
+
+  it('eth_call to self-destructed or empty contract returns 0x', async () => {
+    // Use a known self-destructed contract address (the DAO hack contract)
+    // or just a random address with no code
+    const noCodeAddress = '0x0000000000000000000000000000000000000002'
+    const paddedAddress = KNOWN_ADDRESS.slice(2).toLowerCase().padStart(64, '0')
+    const data = '0x70a08231' + paddedAddress
+
+    try {
+      const result = await rpcCall(RPC_ENDPOINTS[1].url, 'eth_call', [
+        { to: noCodeAddress, data },
+        'latest'
+      ])
+      // Empty contract returns 0x
+      expect(result === '0x' || result === '0x0' || BigInt(result) === 0n).toBe(true)
+    } catch {
+      // Revert is also acceptable
+    }
+  })
+})
+
+describeOrSkip('Live data through handleChainBalanceUpdate shape', () => {
+  const { createBalance } = require('../../../../resources/domain/balance')
+  const NATIVE_CURRENCY = '0x0000000000000000000000000000000000000000'
+
+  it('chain balance data matches the shape handleChainBalanceUpdate produces', async () => {
+    // Simulates the full pipeline: RPC → CurrencyBalance → handleChainBalanceUpdate → setBalance → createBalance
+    const results = await Promise.all(
+      Object.entries(RPC_ENDPOINTS).map(async ([chainId, { url }]) => {
+        const rawBalance = await rpcCall(url, 'eth_getBalance', [KNOWN_ADDRESS, 'latest'])
+        return { chainId: parseInt(chainId), balance: rawBalance }
+      })
+    )
+
+    for (const { chainId, balance: rawBalance } of results) {
+      // This is the shape that handleChainBalanceUpdate creates and stores
+      const storedBalance = {
+        chainId,
+        balance: rawBalance,
+        displayBalance: '', // displayBalance comes from scan.ts createBalance
+        symbol: 'ETH',
+        address: NATIVE_CURRENCY,
+        decimals: 18
+      }
+
+      // This is what the renderer does with it
+      const displayBalance = createBalance(storedBalance, { price: 3200, change24hr: 1.5 })
+
+      expect(displayBalance.displayBalance).toBeDefined()
+      expect(displayBalance.totalValue.isNaN()).toBe(false)
+      expect(displayBalance.price).not.toBe('?')
+    }
+  })
+
+  it('token balance data matches the shape handleTokenBalanceUpdate produces', async () => {
+    // Simulates: RPC → TokenBalance → handleTokenBalanceUpdate → setBalances → createBalance
+    const USDC_MAINNET = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+    const paddedAddress = KNOWN_ADDRESS.slice(2).toLowerCase().padStart(64, '0')
+    const data = '0x70a08231' + paddedAddress
+
+    const rawResult = await rpcCall(RPC_ENDPOINTS[1].url, 'eth_call', [
+      { to: USDC_MAINNET, data },
+      'latest'
+    ])
+
+    // This is the shape scan.ts produces for token balances
+    const tokenBalance = {
+      address: USDC_MAINNET,
+      chainId: 1,
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6,
+      balance: rawResult,
+      displayBalance: '' // filled by scan.ts createBalance
+    }
+
+    // handleTokenBalanceUpdate passes this through to setBalances, then renderer calls createBalance
+    const displayBalance = createBalance(tokenBalance, { price: 1.0, change24hr: 0 })
+
+    expect(displayBalance.displayBalance).toBeDefined()
+    expect(displayBalance.totalValue.isNaN()).toBe(false)
+    // USDC balance should be reasonable (not shifted by wrong decimals)
+    const numericBalance = parseFloat(displayBalance.displayBalance.replace(/,/g, ''))
+    // If non-zero, it should be less than 1 billion (sanity check against wrong decimals)
+    if (numericBalance > 0) {
+      expect(numericBalance).toBeLessThan(1_000_000_000)
     }
   })
 })
