@@ -303,6 +303,20 @@ const interactions = {
         if (ethereumBtn) { ethereumBtn.click(); return 'clicked chain: ' + ethereumBtn.textContent.substring(0, 60); }
         return 'no Ethereum button found, main buttons: ' + buttons.length;
       })()`
+    },
+    {
+      name: 'chain-discovery',
+      js: `(() => {
+        // Look for 'Discover' or 'Add Chain' or '+' button in the chains view
+        const btns = Array.from(document.querySelectorAll('button'));
+        const discoverBtn = btns.find(b =>
+          b.textContent.includes('Discover') ||
+          b.textContent.includes('Add Chain') ||
+          b.textContent.trim() === '+'
+        );
+        if (discoverBtn) { discoverBtn.click(); return 'clicked: ' + discoverBtn.textContent.trim(); }
+        return 'no discover button found, buttons: ' + btns.map(b => b.textContent.trim().substring(0, 20)).join(', ');
+      })()`
     }
   ]
 }
