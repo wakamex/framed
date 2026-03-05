@@ -37,3 +37,12 @@ export const openFileDialog = async () => {
   const file = await dialog.showOpenDialog(browserWindow, { properties: ['openFile'] })
   return file
 }
+
+export const openCsvFileDialog = async () => {
+  const browserWindow = BrowserWindow.getFocusedWindow() as BrowserWindow
+  const file = await dialog.showOpenDialog(browserWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+  })
+  return file
+}

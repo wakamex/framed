@@ -4,7 +4,7 @@ import log from 'electron-log'
 import { randomBytes } from 'crypto'
 import { isAddress } from 'viem'
 import { snapshot } from 'valtio'
-import { openFileDialog } from '../windows/dialog'
+import { openFileDialog, openCsvFileDialog } from '../windows/dialog'
 import { openBlockExplorer } from '../windows/window'
 
 import accounts from '../accounts'
@@ -187,6 +187,64 @@ const rpc: Record<string, (...args: any[]) => void> = {
   removeAccount(address: string, _options: any, cb: RpcCallback) {
     accounts.remove(address)
     cb()
+  },
+  async loadWatchList(source: string, cb: RpcCallback) {
+    try {
+      let csv: string
+
+      if (source.startsWith('http://') || source.startsWith('https://')) {
+        const res = await fetch(source)
+        if (!res.ok) return cb(new Error(`Failed to fetch: ${res.status} ${res.statusText}`))
+        csv = await res.text()
+      } else {
+        // Source is 'file' — open a file dialog
+        const file = await openCsvFileDialog()
+        if (!file || file.canceled || !file.filePaths.length) return cb(new Error('No file selected'))
+        csv = fs.readFileSync(file.filePaths[0], 'utf8')
+      }
+
+      const lines = csv
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith('#'))
+
+      if (!lines.length) return cb(new Error('CSV file is empty'))
+
+      // Detect if first line is a header
+      const firstFields = lines[0].split(',').map((f) => f.trim().toLowerCase())
+      const hasHeader =
+        firstFields.includes('name') || firstFields.includes('address') || firstFields.includes('chainid')
+      const dataLines = hasHeader ? lines.slice(1) : lines
+
+      const results: Array<{ name: string; chainId: number; address: string; error?: string }> = []
+
+      for (const line of dataLines) {
+        const parts = line.split(',').map((p) => p.trim())
+        if (parts.length < 3) {
+          results.push({ name: parts[0] || '', chainId: 0, address: '', error: 'Invalid row format' })
+          continue
+        }
+
+        const [name, chainIdStr, address] = parts
+        const chainId = parseInt(chainIdStr, 10)
+        if (isNaN(chainId)) {
+          results.push({ name, chainId: 0, address, error: `Invalid chain ID: ${chainIdStr}` })
+          continue
+        }
+
+        if (!isAddress(address)) {
+          results.push({ name, chainId, address, error: `Invalid address: ${address}` })
+          continue
+        }
+
+        accounts.add(address, name, { type: 'Address' })
+        results.push({ name, chainId, address })
+      }
+
+      cb(null, results)
+    } catch (err) {
+      cb(err)
+    }
   },
   createFromPhrase(phrase: string, password: string, cb: RpcCallback) {
     signers.createFromPhrase(phrase, password, cb)

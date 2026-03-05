@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { actions } from '../../ipc'
 
-type AccountType = 'phrase' | 'privateKey' | 'keystore' | 'address' | 'ledger' | 'trezor' | 'lattice'
+type AccountType = 'phrase' | 'privateKey' | 'keystore' | 'address' | 'watchList' | 'ledger' | 'trezor' | 'lattice'
 
 interface AddAccountProps {
   onClose: (createdAddress?: string) => void
@@ -23,6 +23,7 @@ export default function AddAccount({ onClose }: AddAccountProps) {
             { type: 'privateKey' as const, label: 'Private Key', desc: 'Import a private key' },
             { type: 'keystore' as const, label: 'Keystore', desc: 'Import a keystore file' },
             { type: 'address' as const, label: 'Watch Address', desc: 'Watch-only account' },
+            { type: 'watchList' as const, label: 'Watch List', desc: 'Import CSV of addresses' },
             { type: 'ledger' as const, label: 'Ledger', desc: 'Connect Ledger device' },
             { type: 'trezor' as const, label: 'Trezor', desc: 'Connect Trezor device' },
             { type: 'lattice' as const, label: 'Lattice', desc: 'Connect GridPlus Lattice' },
@@ -48,6 +49,7 @@ export default function AddAccount({ onClose }: AddAccountProps) {
     case 'privateKey': return <PrivateKeyForm onBack={handleBack} onDone={onClose} />
     case 'keystore': return <KeystoreForm onBack={handleBack} onDone={onClose} />
     case 'address': return <WatchAddressForm onBack={handleBack} onDone={onClose} />
+    case 'watchList': return <WatchListForm onBack={handleBack} onDone={onClose} />
     case 'ledger':
     case 'trezor':
     case 'lattice':
@@ -350,6 +352,107 @@ function WatchAddressForm({ onBack, onDone }: { onBack: () => void; onDone: (add
         className="w-full py-2 rounded-lg text-sm font-medium bg-gray-700 text-gray-200 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         {loading ? 'Adding...' : 'Add'}
+      </button>
+    </form>
+  )
+}
+
+type WatchListResult = { name: string; chainId: number; address: string; error?: string }
+
+function WatchListForm({ onBack, onDone }: { onBack: () => void; onDone: (address?: string) => void }) {
+  const [mode, setMode] = useState<'file' | 'url'>('file')
+  const [url, setUrl] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [results, setResults] = useState<WatchListResult[] | null>(null)
+
+  const handleLoad = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setResults(null)
+    setLoading(true)
+    try {
+      const source = mode === 'url' ? url.trim() : 'file'
+      const res = await actions.loadWatchList(source)
+      setResults(res)
+      const firstSuccess = res.find((r) => !r.error)
+      if (!firstSuccess) setError('No valid addresses found in the file')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load watch list')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const successCount = results?.filter((r) => !r.error).length ?? 0
+  const errorCount = results?.filter((r) => r.error).length ?? 0
+
+  if (results) {
+    return (
+      <div className="space-y-3">
+        <FormHeader title="Watch List Results" onBack={onBack} />
+        <div className="text-sm">
+          {successCount > 0 && <p className="text-green-400">{successCount} address{successCount !== 1 ? 'es' : ''} added</p>}
+          {errorCount > 0 && <p className="text-red-400 mt-1">{errorCount} row{errorCount !== 1 ? 's' : ''} skipped</p>}
+        </div>
+        <div className="max-h-48 overflow-y-auto space-y-1">
+          {results.map((r, i) => (
+            <div key={i} className={`text-xs font-mono px-2 py-1 rounded ${r.error ? 'bg-red-900/20 text-red-400' : 'bg-gray-800 text-gray-300'}`}>
+              <span className="text-gray-500">{r.name || '—'}</span>
+              {' '}
+              <span className="truncate">{r.address ? `${r.address.slice(0, 8)}...${r.address.slice(-6)}` : '—'}</span>
+              {r.chainId > 0 && <span className="text-gray-600 ml-1">({r.chainId})</span>}
+              {r.error && <span className="ml-1 text-red-500">{r.error}</span>}
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => onDone()}
+          className="w-full py-2 rounded-lg text-sm font-medium bg-gray-700 text-gray-200 hover:bg-gray-600 transition-colors"
+        >
+          Done
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleLoad} className="space-y-3">
+      <FormHeader title="Import Watch List" onBack={onBack} />
+      <p className="text-xs text-gray-500">
+        CSV format: <span className="font-mono text-gray-400">name,chainId,address</span>
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setMode('file')}
+          className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors ${mode === 'file' ? 'border-gray-600 bg-gray-800 text-gray-200' : 'border-gray-800 text-gray-500 hover:text-gray-400'}`}
+        >
+          Local File
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('url')}
+          className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors ${mode === 'url' ? 'border-gray-600 bg-gray-800 text-gray-200' : 'border-gray-800 text-gray-500 hover:text-gray-400'}`}
+        >
+          Remote URL
+        </button>
+      </div>
+      {mode === 'url' && (
+        <input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://example.com/watchlist.csv"
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 outline-none focus:border-gray-600 font-mono"
+        />
+      )}
+      {error && <p className="text-red-400 text-xs">{error}</p>}
+      <button
+        type="submit"
+        disabled={loading || (mode === 'url' && !url.trim())}
+        className="w-full py-2 rounded-lg text-sm font-medium bg-gray-700 text-gray-200 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        {loading ? 'Loading...' : mode === 'file' ? 'Select CSV File' : 'Load from URL'}
       </button>
     </form>
   )
