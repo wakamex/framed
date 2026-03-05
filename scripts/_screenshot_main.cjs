@@ -200,15 +200,67 @@ const mockState = {
   platform: process.platform
 }
 
-const views = ['accounts', 'send', 'signers', 'chains', 'tokens', 'settings']
+const views = ['accounts', 'portfolio', 'send', 'contacts', 'signers', 'history', 'chains', 'tokens', 'settings']
+
+// Interactions to perform after navigating to each view.
+// Each returns a description of what was done, for logging.
+const interactions = {
+  accounts: [
+    {
+      name: 'account-detail',
+      js: `(() => {
+        // Click the first account in the list to show detail
+        const btn = document.querySelector('[class*="AccountList"] button, main button');
+        const accountBtns = Array.from(document.querySelectorAll('main button')).filter(b => b.textContent.includes('Account') || b.querySelector('[data-testid]'));
+        // Find buttons that look like account entries (have address-like text)
+        const candidates = Array.from(document.querySelectorAll('main button')).filter(b => b.textContent.match(/0x[0-9a-f]/i) || b.textContent.includes('Main Account'));
+        if (candidates[0]) { candidates[0].click(); return 'clicked account: ' + candidates[0].textContent.substring(0, 40); }
+        return 'no account button found, buttons: ' + document.querySelectorAll('main button').length;
+      })()`
+    }
+  ]
+}
+
+async function waitForApp(win) {
+  // Wait for React to mount and render content
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const rootLen = await win.webContents.executeJavaScript(
+      'document.getElementById("root")?.innerHTML?.length || 0'
+    )
+    if (rootLen > 100) {
+      console.log(`[Main] App rendered (${rootLen} chars) after ${(attempt + 1) * 500}ms`)
+      return true
+    }
+    await new Promise(r => setTimeout(r, 500))
+  }
+  console.error('[Main] App did not render within 10s')
+  return false
+}
+
+async function captureScreenshot(win, name) {
+  await new Promise(r => setTimeout(r, 500)) // settle time
+  const image = await win.webContents.capturePage()
+  const png = image.toPNG()
+  fs.writeFileSync(path.join(screenshotsDir, name + '.png'), png)
+  console.log('Saved: screenshots/' + name + '.png')
+  return png
+}
+
+// Validate screenshot isn't blank (all same color)
+function validateScreenshot(png, name) {
+  // Check that the PNG is reasonably large (not a tiny error page)
+  if (png.length < 5000) {
+    console.error(`[FAIL] ${name}: screenshot too small (${png.length} bytes) — likely blank`)
+    return false
+  }
+  return true
+}
 
 app.whenReady().then(async () => {
-  // Start local HTTP server on port 5173 (must match bridge safeOrigins for dev mode)
   await new Promise((resolve) => server.listen(5173, '127.0.0.1', resolve))
   const port = 5173
   console.log('[Main] HTTP server on port', port)
 
-  // Handle the main:rpc channel (bridge sends RPC calls here)
   ipcMain.on('main:rpc', (event, id, ...args) => {
     const parsedArgs = args.map(a => { try { return JSON.parse(a) } catch { return a } })
     const method = parsedArgs[0]
@@ -221,7 +273,6 @@ app.whenReady().then(async () => {
     }
   })
 
-  // Swallow events from renderer
   ipcMain.on('tray:ready', () => { console.log('[IPC] tray:ready received') })
   ipcMain.on('tray:action', () => {})
 
@@ -237,24 +288,26 @@ app.whenReady().then(async () => {
     }
   })
 
-  // Capture renderer console output
+  const errors = []
   win.webContents.on('console-message', (_event, level, message) => {
     const levels = ['LOG', 'WARN', 'ERROR']
-    console.log(`[Renderer ${levels[level] || level}] ${message}`)
+    const tag = levels[level] || level
+    if (level >= 2) errors.push(message)
+    console.log(`[Renderer ${tag}] ${message}`)
   })
 
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('[Load Error]', errorCode, errorDescription)
+    errors.push('Load error: ' + errorDescription)
   })
 
   win.webContents.on('preload-error', (_event, _preloadPath, error) => {
     console.error('[Preload Error]', error)
+    errors.push('Preload error: ' + error)
   })
 
   win.webContents.setFrameRate(30)
 
-  // Strip CSP from the HTML (it restricts 'self' which may conflict with http server)
-  // Also add the http://127.0.0.1 to the bridge's safe origins
   win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
@@ -264,51 +317,23 @@ app.whenReady().then(async () => {
     })
   })
 
-  // Load via HTTP - must use localhost (not 127.0.0.1) to match bridge safeOrigins
   const url = `http://localhost:${port}/index.html`
   console.log('[Main] Loading:', url)
   await win.loadURL(url)
-  console.log('[Main] Page loaded')
+  console.log('[Main] Page loaded, waiting for React...')
 
-  // Test console-message handler
-  await win.webContents.executeJavaScript('console.log("TEST: console-message handler works")')
-  await new Promise(r => setTimeout(r, 100))
-  console.log('[Main] Waiting for React...')
+  const appReady = await waitForApp(win)
+  if (!appReady) {
+    console.error('[FAIL] App did not render — aborting')
+    server.close()
+    app.exit(1)
+    return
+  }
 
-  // Wait for React to initialize
-  await new Promise(r => setTimeout(r, 3000))
+  let failures = 0
+  let step = 1
 
-  // Debug: exhaustive state check
-  const debug = await win.webContents.executeJavaScript(`
-    (() => {
-      const root = document.getElementById('root');
-      const info = {
-        rootHTML: root ? root.innerHTML.substring(0, 200) : 'NO ROOT',
-        rootChildren: root ? root.childNodes.length : -1,
-        allElements: document.querySelectorAll('*').length,
-        scripts: Array.from(document.querySelectorAll('script')).map(s => ({src: s.src, type: s.type})),
-        styles: document.querySelectorAll('style').length,
-        links: document.querySelectorAll('link[rel=stylesheet]').length,
-      };
-      // Check if any global errors were set
-      info.errors = window.__errors || [];
-      // Try to find React internals
-      if (root && root._reactRootContainer) info.hasReactRoot = true;
-      // Check Zustand (might be in module scope)
-      info.windowKeys = Object.keys(window).filter(k => k.startsWith('__')).join(',');
-      return JSON.stringify(info);
-    })()
-  `)
-  console.log('[Debug]', debug)
-
-  // Wait more and check again
-  await new Promise(r => setTimeout(r, 3000))
-  const rootLen = await win.webContents.executeJavaScript(
-    'document.getElementById("root").innerHTML.length'
-  )
-  console.log('[Debug] Root HTML length after 6s:', rootLen)
-
-  // Screenshot each view
+  // Screenshot each view via nav buttons
   for (let i = 0; i < views.length; i++) {
     const view = views[i]
 
@@ -318,9 +343,9 @@ app.whenReady().then(async () => {
           const buttons = document.querySelectorAll('nav button');
           if (buttons[${i}]) {
             buttons[${i}].click();
-            return 'clicked button ' + ${i} + ' of ' + buttons.length;
+            return 'clicked nav ' + ${i} + ': ' + buttons[${i}].textContent;
           }
-          return 'no button at index ${i}, total: ' + buttons.length;
+          return 'no nav button at index ${i}, total: ' + buttons.length;
         })()
       `)
       console.log('[Nav]', result)
@@ -328,17 +353,37 @@ app.whenReady().then(async () => {
       console.log('[Nav Error]', err.message)
     }
 
-    await new Promise(r => setTimeout(r, 800))
+    const name = String(step++).padStart(2, '0') + '-' + view
+    const png = await captureScreenshot(win, name)
+    if (!validateScreenshot(png, name)) failures++
 
-    const image = await win.webContents.capturePage()
-    const filename = String(i + 1).padStart(2, '0') + '-' + view + '.png'
-    fs.writeFileSync(path.join(screenshotsDir, filename), image.toPNG())
-    console.log('Saved: screenshots/' + filename)
+    // Run any post-navigation interactions for this view
+    const viewInteractions = interactions[view] || []
+    for (const interaction of viewInteractions) {
+      try {
+        const result = await win.webContents.executeJavaScript(interaction.js)
+        console.log(`[Interact:${interaction.name}]`, result)
+      } catch (err) {
+        console.log(`[Interact Error:${interaction.name}]`, err.message)
+      }
+
+      const interName = String(step++).padStart(2, '0') + '-' + interaction.name
+      const interPng = await captureScreenshot(win, interName)
+      if (!validateScreenshot(interPng, interName)) failures++
+    }
   }
 
-  console.log('\nAll screenshots saved to screenshots/ directory')
+  // Summary
+  console.log('\n' + '='.repeat(60))
+  console.log(`Screenshots: ${step - 1} captured, ${failures} failures`)
+  if (errors.length > 0) {
+    console.log(`Renderer errors: ${errors.length}`)
+    errors.forEach(e => console.log('  -', e.substring(0, 120)))
+  }
+  console.log('='.repeat(60))
+
   server.close()
-  app.quit()
+  app.exit(failures > 0 ? 1 : 0)
 })
 
 app.on('window-all-closed', () => app.quit())
