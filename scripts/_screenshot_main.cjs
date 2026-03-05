@@ -163,6 +163,16 @@ const mockState = {
               gasLimit: '0x5208',
               gasPrice: '0x5d21dba00'
             }
+          },
+          'req-addchain-1': {
+            handlerId: 'req-addchain-1',
+            type: 'addChain',
+            status: 'pending',
+            origin: 'bridge.base.org',
+            account: '0x1234567890abcdef1234567890abcdef12345678',
+            created: Date.now(),
+            chain: { id: 8453, name: 'Base', symbol: 'ETH', explorer: 'https://basescan.org' },
+            payload: { jsonrpc: '2.0', id: 4, method: 'wallet_addEthereumChain', params: [{ chainId: '0x2105', chainName: 'Base' }] }
           }
         },
         ensName: 'alice.eth',
@@ -459,6 +469,31 @@ const interactions = {
             resolve('addToken overlay not found, no navigation available, text: ' + text.substring(0, 100));
           };
           setTimeout(findAddToken, 300);
+        });
+      })()`
+    },
+    {
+      name: 'addchain-request',
+      js: `(() => {
+        // Navigate through the request queue to find the addChain request (shows Add Chain + Decline buttons)
+        // After eip1559-transaction ends at the last queue index, use Prev to navigate backwards.
+        return new Promise(resolve => {
+          let attempts = 0;
+          const findAddChain = () => {
+            if (attempts++ > 12) { resolve('addChain request not found after 12 attempts'); return; }
+            const text = document.body.innerText;
+            if (text.includes('Add Chain') && text.includes('Decline') && text.includes('Base')) {
+              resolve('addChain overlay visible with chain name Base and Add Chain/Decline buttons');
+              return;
+            }
+            const btns = Array.from(document.querySelectorAll('button'));
+            const prevBtn = btns.find(b => b.textContent.trim().includes('Prev') && !b.disabled);
+            const nextBtn = btns.find(b => b.textContent.trim().includes('Next') && !b.disabled);
+            if (prevBtn) { prevBtn.click(); setTimeout(findAddChain, 300); }
+            else if (nextBtn) { nextBtn.click(); setTimeout(findAddChain, 300); }
+            else resolve('No nav buttons available, overlay text: ' + text.substring(0, 100));
+          };
+          setTimeout(findAddChain, 300);
         });
       })()`
     },
