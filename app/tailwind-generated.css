@@ -933,6 +933,9 @@
   .bg-red-500\/20 {
     background-color: color-mix(in oklab, var(--color-red-500) 20%, transparent);
   }
+  .bg-red-900\/20 {
+    background-color: color-mix(in oklab, var(--color-red-900) 20%, transparent);
+  }
   .bg-yellow-400 {
     background-color: var(--color-yellow-400);
   }
@@ -1093,6 +1096,9 @@
   }
   .text-red-400\/70 {
     color: color-mix(in oklab, var(--color-red-400) 70%, transparent);
+  }
+  .text-red-500 {
+    color: var(--color-red-500);
   }
   .text-white {
     color: var(--color-white);
