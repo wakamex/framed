@@ -218,7 +218,12 @@ const mockState = {
     trezor: { derivation: 'standard' },
     privacy: { errorReporting: false },
     updater: { dontRemind: [], badge: null },
-    rates: {}
+    rates: {},
+    addressBook: {
+      'contact-1': { name: 'Alice', address: '0xaaaa111122223333444455556666777788889999', notes: '' },
+      'contact-2': { name: 'Bob Vance', address: '0xbbbb111122223333444455556666777788889999', notes: 'Cold storage' },
+      'contact-3': { name: 'Treasury', address: '0xcccc111122223333444455556666777788889999', notes: 'DAO multisig' }
+    }
   },
   platform: process.platform
 }
@@ -259,6 +264,23 @@ const interactions = {
         const addBtn = buttons.find(b => b.textContent.trim() === '+ Add' || b.textContent.trim() === 'Add');
         if (addBtn) { addBtn.click(); return 'clicked: ' + addBtn.textContent.trim(); }
         return 'no + Add button found, buttons: ' + buttons.map(b => b.textContent.trim()).join(', ');
+      })()`
+    }
+  ],
+  send: [
+    {
+      name: 'send-contact-autocomplete',
+      js: `(() => {
+        // Type a letter into the recipient input to trigger contact autocomplete
+        const input = document.querySelector('input[placeholder*="0x"]');
+        if (!input) return 'no recipient input found';
+        // Set value and dispatch input event to trigger React state update
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        nativeInputValueSetter.call(input, 'a');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.focus();
+        return 'typed in recipient, focused input';
       })()`
     }
   ],
