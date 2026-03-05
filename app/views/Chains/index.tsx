@@ -5,8 +5,26 @@ import { actions, sendAction } from '../../ipc'
 import { useCompact } from '../../hooks/useCompact'
 import { isNetworkConnected } from '../../../resources/utils/chains'
 import { weiToGwei, hexToInt, roundGwei } from '../../../resources/utils'
+import { NETWORK_PRESETS } from '../../../resources/constants'
 import StatusDot from '../../components/StatusDot'
 import ChainDiscovery from './ChainDiscovery'
+
+function resolveRpcUrl(chainId: string, connection: Chain['connection']['primary'] | undefined): string | null {
+  if (!connection) return null
+  if (connection.current === 'custom') return connection.custom || null
+  if (connection.current === 'local') return 'local (direct)'
+  const presets: Record<string, Record<string, string>> = NETWORK_PRESETS.ethereum as any
+  return presets[chainId]?.[connection.current] || presets.default?.[connection.current] || null
+}
+
+function truncateUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    return u.hostname
+  } catch {
+    return url
+  }
+}
 
 export default function ChainsView() {
   const networks = useNetworks()
@@ -155,18 +173,10 @@ function ChainDetail({ chain, meta, chainId }: { chain: Chain; meta: ChainMetada
       <section>
         <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Connections</h3>
         <div className="space-y-2">
-          <ConnectionRow label="Primary" connection={chain.connection?.primary} />
-          <ConnectionRow label="Secondary" connection={chain.connection?.secondary} />
+          <ConnectionRow label="Primary" connection={chain.connection?.primary} chainId={chainId} health={meta?.rpcHealth} />
+          <ConnectionRow label="Secondary" connection={chain.connection?.secondary} chainId={chainId} />
         </div>
       </section>
-
-      {/* RPC Health */}
-      {meta?.rpcHealth && (
-        <section>
-          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">RPC Health</h3>
-          <RpcHealthBadge health={meta.rpcHealth} />
-        </section>
-      )}
 
       {/* Gas */}
       {meta?.gas && (
@@ -225,39 +235,44 @@ function ChainDetail({ chain, meta, chainId }: { chain: Chain; meta: ChainMetada
   )
 }
 
-function ConnectionRow({ label, connection }: { label: string; connection: Chain['connection']['primary'] | undefined }) {
+const healthColors: Record<RpcHealth['status'], string> = {
+  healthy: 'text-green-400',
+  degraded: 'text-yellow-400',
+  down: 'text-red-400'
+}
+
+function ConnectionRow({ label, connection, chainId, health }: {
+  label: string
+  connection: Chain['connection']['primary'] | undefined
+  chainId: string
+  health?: RpcHealth
+}) {
   if (!connection) return null
+
+  const url = resolveRpcUrl(chainId, connection)
+  const displayUrl = url ? truncateUrl(url) : null
+  const isConnected = connection.connected
+
   return (
-    <div className="flex items-center justify-between bg-gray-800/50 rounded-lg px-3 py-2">
-      <div className="flex items-center gap-2">
-        <StatusDot status={connection.connected ? 'connected' : connection.on ? 'loading' : 'off'} />
-        <span className="text-sm text-gray-300">{label}</span>
+    <div className="bg-gray-800/50 rounded-lg px-3 py-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <StatusDot status={isConnected ? 'connected' : connection.on ? 'loading' : 'off'} />
+          <span className="text-sm text-gray-300">{label}</span>
+        </div>
+        <span className="text-xs text-gray-500 capitalize">{connection.current}</span>
       </div>
-      <span className="text-xs text-gray-500 capitalize">
-        {connection.current}{connection.custom ? ` (${connection.custom})` : ''}
-      </span>
-    </div>
-  )
-}
-
-const healthStatusMap: Record<RpcHealth['status'], string> = {
-  healthy: 'connected',
-  degraded: 'loading',
-  down: 'error'
-}
-
-const healthLabels: Record<RpcHealth['status'], string> = {
-  healthy: 'Healthy',
-  degraded: 'Degraded',
-  down: 'Down'
-}
-
-function RpcHealthBadge({ health }: { health: RpcHealth }) {
-  return (
-    <div className="flex items-center gap-2 bg-gray-800/50 rounded-lg px-3 py-2">
-      <StatusDot status={healthStatusMap[health.status]} />
-      <span className="text-sm text-gray-300">{healthLabels[health.status]}</span>
-      <span className="text-xs text-gray-500 ml-auto">{health.latencyMs}ms</span>
+      {displayUrl && (
+        <div className="text-xs text-gray-500 mt-1 ml-4 truncate" title={url!}>
+          {displayUrl}
+        </div>
+      )}
+      {health && isConnected && (
+        <div className="flex items-center gap-2 text-xs mt-1 ml-4">
+          <span className={healthColors[health.status]}>{health.status}</span>
+          <span className="text-gray-600">{health.latencyMs}ms</span>
+        </div>
+      )}
     </div>
   )
 }
