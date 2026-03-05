@@ -712,6 +712,39 @@ const interactions = {
         if (changeBtn) { changeBtn.click(); return 'clicked Change button'; }
         return 'no Change button found, buttons: ' + btns.map(b => b.textContent.trim().substring(0, 20)).join(', ');
       })()`
+    },
+    {
+      name: 'settings-hardware-section',
+      js: `(() => {
+        const main = document.querySelector('main');
+        if (main) {
+          // Scroll to mid-page to show Hardware and API Keys sections
+          main.scrollTop = main.scrollHeight / 3;
+        }
+        return 'scrolled to hardware section, scrollTop: ' + (main ? main.scrollTop : 'no main');
+      })()`
+    },
+    {
+      name: 'settings-gas-alerts',
+      js: `(() => {
+        const main = document.querySelector('main');
+        if (main) {
+          // Scroll further to show Gas Alerts section
+          main.scrollTop = main.scrollHeight * 2 / 3;
+        }
+        return 'scrolled to gas alerts, scrollTop: ' + (main ? main.scrollTop : 'no main');
+      })()`
+    },
+    {
+      name: 'settings-danger-zone',
+      js: `(() => {
+        const main = document.querySelector('main');
+        if (main) {
+          // Scroll to bottom to show Danger Zone
+          main.scrollTop = main.scrollHeight;
+        }
+        return 'scrolled to danger zone, scrollTop: ' + (main ? main.scrollTop : 'no main');
+      })()`
     }
   ]
 }
