@@ -7,7 +7,6 @@ import { subscribe, snapshot } from 'valtio'
 // DO NOT MOVE - env var below is required for app init and must be set before all local imports
 process.env.BUNDLE_LOCATION = process.env.BUNDLE_LOCATION || path.resolve(__dirname, './../..', 'bundle')
 
-import * as errors from './errors'
 import windows from './windows'
 import menu from './menu'
 import state from './store'
@@ -47,8 +46,6 @@ if (!hasInstanceLock) {
   log.info('another instance of Frame is running - exiting...')
   app.exit(1)
 }
-errors.init()
-
 log.info(`Chrome: v${process.versions.chrome}`)
 log.info(`Electron: v${process.versions.electron}`)
 log.info(`Node: v${process.versions.node}`)

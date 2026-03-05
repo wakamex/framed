@@ -60,9 +60,7 @@ export interface MainState {
   trezor: {
     derivation: string
   }
-  privacy: {
-    errorReporting: boolean
-  }
+  privacy: {}
   updater: {
     dontRemind: string[]
     badge?: { type: string; version: string }

@@ -586,10 +586,6 @@ export function setAutohide(v: boolean) {
   state.main.autohide = v
 }
 
-export function setErrorReporting(enable: boolean) {
-  state.main.privacy.errorReporting = enable
-}
-
 export function setMenubarGasPrice(value: boolean) {
   state.main.menubarGasPrice = value
 }

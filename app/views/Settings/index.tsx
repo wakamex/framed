@@ -64,12 +64,6 @@ export default function SettingsView() {
       {/* Privacy */}
       <Section title="Privacy">
         <ToggleRow
-          label="Error Reporting"
-          description="Send anonymous error reports to help improve Frame"
-          value={main.privacy?.errorReporting ?? false}
-          onChange={() => toggle('main.privacy.errorReporting', main.privacy?.errorReporting ?? false)}
-        />
-        <ToggleRow
           label="Show Local Name with ENS"
           description="Display local account names alongside ENS names"
           value={main.showLocalNameWithENS}

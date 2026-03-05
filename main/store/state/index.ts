@@ -153,9 +153,7 @@ const mainState: M = {
   },
   origins: main('origins', {}),
   knownExtensions: main('knownExtensions', {}),
-  privacy: {
-    errorReporting: main('privacy.errorReporting', true)
-  },
+  privacy: {},
   accounts: main('accounts', {}),
   accountsMeta: main('accountsMeta', {}),
   addresses: main('addresses', {}), // Should be removed after 0.5 release

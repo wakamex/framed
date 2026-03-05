@@ -62,7 +62,6 @@
     "@ledgerhq/hw-transport-node-hid-singleton": "6.32.0",
     "@ledgerhq/hw-transport-web-ble": "6.29.4",
     "@metamask/eth-sig-util": "5.0.2",
-    "@sentry/electron": "7.8.0",
     "@trezor/connect": "9.4.7",
     "auto-launch": "5.0.5",
     "bip39": "3.1.0",

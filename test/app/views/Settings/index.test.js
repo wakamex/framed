@@ -30,7 +30,7 @@ const mockMainState = {
   autohide: false,
   menubarGasPrice: false,
   showLocalNameWithENS: false,
-  privacy: { errorReporting: true },
+  privacy: {},
   ledger: { derivation: 'live', liveAccountLimit: 5 },
   trezor: { derivation: 'standard' },
   apiKeys: { etherscan: '', polygonscan: '', arbiscan: '' },
@@ -123,13 +123,6 @@ describe('SettingsView', () => {
     // current autohide is false, toggling should set to true
     await user.click(getToggleForLabel('Auto-hide'))
     expect(mockSyncPath).toHaveBeenCalledWith('main.autohide', true)
-  })
-
-  it('Error Reporting toggle calls syncPath with correct path', async () => {
-    const { user } = render(<SettingsView />)
-    // current errorReporting is true, toggling should set to false
-    await user.click(getToggleForLabel('Error Reporting'))
-    expect(mockSyncPath).toHaveBeenCalledWith('main.privacy.errorReporting', false)
   })
 
   it('Dark Mode toggle uses its own path, not startup path', async () => {
