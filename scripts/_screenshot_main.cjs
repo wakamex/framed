@@ -936,7 +936,12 @@ app.whenReady().then(async () => {
   const compactViews = [
     { name: 'accounts', navIndex: 0 },
     { name: 'portfolio', navIndex: 1 },
+    { name: 'send', navIndex: 2 },
+    { name: 'contacts', navIndex: 3 },
+    { name: 'signers', navIndex: 4 },
+    { name: 'history', navIndex: 5 },
     { name: 'chains', navIndex: 6 },
+    { name: 'tokens', navIndex: 7 },
     { name: 'settings', navIndex: 8 }
   ]
 
