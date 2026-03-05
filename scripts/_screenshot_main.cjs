@@ -410,6 +410,28 @@ const interactions = {
       })()`
     }
   ],
+  tokens: [
+    {
+      name: 'remove-token-modal',
+      js: `(() => {
+        // Find a remove/delete/trash button next to a token entry
+        const btns = Array.from(document.querySelectorAll('main button'));
+        // Look for buttons with trash icon, 'Remove', 'Delete', or '×' text
+        const removeBtn = btns.find(b =>
+          b.textContent.includes('Remove') ||
+          b.textContent.includes('Delete') ||
+          b.querySelector('svg[data-icon="trash"]') ||
+          b.getAttribute('aria-label')?.includes('remove') ||
+          b.getAttribute('title')?.includes('Remove')
+        );
+        if (removeBtn) { removeBtn.click(); return 'clicked remove button'; }
+        // Fallback: look for small icon-only buttons near token entries
+        const iconBtns = btns.filter(b => b.textContent.trim().length < 3 && b.querySelector('svg'));
+        if (iconBtns[0]) { iconBtns[0].click(); return 'clicked icon button (likely remove)'; }
+        return 'no remove button found, main buttons: ' + btns.map(b => b.textContent.trim().substring(0, 20)).join(', ');
+      })()`
+    }
+  ],
   settings: [
     {
       name: 'shortcut-configurator',
