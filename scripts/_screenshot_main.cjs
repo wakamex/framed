@@ -608,6 +608,43 @@ const interactions = {
       })()`
     },
     {
+      name: 'approved-transaction-state',
+      stateUpdates: [
+        {
+          path: 'main.accounts.0x1234567890abcdef1234567890abcdef12345678.requests.req-1.status',
+          value: 'confirmed'
+        },
+        {
+          path: 'main.accounts.0x1234567890abcdef1234567890abcdef12345678.requests.req-1.tx',
+          value: { hash: '0xabc123def456789abc123def456789abc123def456789abc123def456789abcd' }
+        }
+      ],
+      js: `(() => {
+        // Navigate to Main Account's transaction request
+        const btns = Array.from(document.querySelectorAll('main button'));
+        const mainBtn = btns.find(b => b.textContent.includes('Main Account'));
+        if (mainBtn) mainBtn.click();
+        return new Promise(resolve => setTimeout(() => {
+          const text = document.body.innerText;
+          if (text.includes('View on explorer') || text.includes('confirmed')) {
+            resolve('approved state visible with explorer link');
+          } else {
+            resolve('state: ' + text.substring(0, 100));
+          }
+        }, 500));
+      })()`
+    },
+    {
+      name: 'restore-pending-state',
+      stateUpdates: [
+        {
+          path: 'main.accounts.0x1234567890abcdef1234567890abcdef12345678.requests.req-1.status',
+          value: 'pending'
+        }
+      ],
+      js: `(() => 'restored pending state')()`
+    },
+    {
       name: 'addtoken-request',
       js: `(() => {
         // Navigate the request overlay queue to find the addToken request
