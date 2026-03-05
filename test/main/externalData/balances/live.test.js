@@ -1,36 +1,15 @@
 /**
- * Live RPC integration tests.
- *
- * These tests hit real public RPC endpoints to verify that:
- *   1. All configured public RPCs are reachable
- *   2. eth-provider can connect (same library the app uses)
- *   3. Native currency balances can be fetched
- *   4. ERC-20 token balances can be fetched via multicall
+ * Live RPC integration tests for balance fetching.
  *
  * Run with: npm run test:live
  *
  * Skipped in CI (no LIVE_RPC env var). To run locally:
- *   LIVE_RPC=1 npx jest test/main/externalData/balances/live.test.js
+ *   LIVE_RPC=1 npx jest test/main/externalData/balances/live.test.js --no-coverage --testTimeout=30000
  */
 
-const SKIP = !process.env.LIVE_RPC
+const { RPC_ENDPOINTS, KNOWN_ADDRESS, rpcCall, describeOrSkip, setupLiveTimers } = require('../../../live/helpers')
 
-if (!SKIP) {
-  jest.useRealTimers()
-  jest.setTimeout(30_000)
-}
-
-// These must match NETWORK_PRESETS in resources/constants/index.ts
-const RPC_ENDPOINTS = {
-  1: { name: 'Ethereum Mainnet', url: 'https://ethereum-rpc.publicnode.com' },
-  10: { name: 'Optimism', url: 'https://optimism-rpc.publicnode.com' },
-  137: { name: 'Polygon', url: 'https://polygon-bor-rpc.publicnode.com' },
-  8453: { name: 'Base', url: 'https://base-rpc.publicnode.com' },
-  42161: { name: 'Arbitrum', url: 'https://arbitrum-one-rpc.publicnode.com' }
-}
-
-// Vitalik's address — known to have ETH and tokens on mainnet
-const KNOWN_ADDRESS = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'
+setupLiveTimers()
 
 // USDC on mainnet — known high-liquidity token
 const USDC_MAINNET = {
@@ -38,23 +17,6 @@ const USDC_MAINNET = {
   decimals: 6,
   chainId: 1
 }
-
-async function rpcCall(url, method, params = []) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
-  })
-
-  if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`)
-
-  const json = await res.json()
-  if (json.error) throw new Error(`RPC error: ${json.error.message}`)
-
-  return json.result
-}
-
-const describeOrSkip = SKIP ? describe.skip : describe
 
 describeOrSkip('RPC preset coverage', () => {
   const { NETWORK_PRESETS } = require('../../../../resources/constants')
