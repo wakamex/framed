@@ -92,7 +92,7 @@ describe('GasView', () => {
     render(<GasView />)
 
     expect(screen.getAllByText('Mainnet').length).toBeGreaterThan(0)
-    expect(screen.getByText('30')).toBeTruthy()
+    expect(screen.getAllByText('30').length).toBeGreaterThan(0)
     expect(screen.getByText('gwei')).toBeTruthy()
   })
 
@@ -115,7 +115,7 @@ describe('GasView', () => {
     // The sparkline renders as SVG paths — if history has >1 point, no "waiting" message
     expect(screen.queryByText(/waiting for data/i)).toBeNull()
     // Gas price should be visible
-    expect(screen.getByText('30')).toBeTruthy()
+    expect(screen.getAllByText('30').length).toBeGreaterThan(0)
   })
 
   it('5. shows waiting message when no gas data', () => {
@@ -138,6 +138,7 @@ describe('GasView', () => {
     render(<GasView />)
 
     expect(screen.getByText('Estimated Transaction Costs')).toBeTruthy()
+    expect(screen.getByText('Gwei')).toBeTruthy()
     expect(screen.getByText('Send ETH')).toBeTruthy()
     expect(screen.getByText('$1.89')).toBeTruthy()
   })

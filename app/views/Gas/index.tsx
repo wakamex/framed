@@ -159,19 +159,9 @@ function Sparkline({ points, color }: { points: GasPoint[]; color: string }) {
 
   const linePath = `M${pathPoints.join(' L')}`
 
-  // Gradient fill below line
-  const fillPath = `${linePath} L${W},${H} L0,${H} Z`
-
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id={`grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.2" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={fillPath} fill={`url(#grad-${color.replace('#', '')})`} />
-      <path d={linePath} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+      <path d={linePath} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" style={{ filter: 'brightness(1.4)' }} />
     </svg>
   )
 }
@@ -197,9 +187,10 @@ function TxCostTable({ chains }: { chains: ChainGasData[] }) {
       <div className="bg-gray-800/50 rounded-lg overflow-hidden">
         <div
           className="grid gap-2 px-4 py-2.5 border-b border-gray-700/50 text-xs font-medium text-gray-500 uppercase tracking-wide"
-          style={{ gridTemplateColumns: `1fr repeat(${sampleLabels.length}, minmax(100px, 1fr))` }}
+          style={{ gridTemplateColumns: `1fr 70px repeat(${sampleLabels.length}, minmax(100px, 1fr))` }}
         >
           <div>Chain</div>
+          <div className="text-right">Gwei</div>
           {sampleLabels.map((label) => (
             <div key={label} className="text-right">{label}</div>
           ))}
@@ -209,7 +200,7 @@ function TxCostTable({ chains }: { chains: ChainGasData[] }) {
           <div
             key={chain.id}
             className="grid gap-2 px-4 py-3 border-b border-gray-800/50 last:border-0 hover:bg-gray-800/30 transition-colors"
-            style={{ gridTemplateColumns: `1fr repeat(${sampleLabels.length}, minmax(100px, 1fr))` }}
+            style={{ gridTemplateColumns: `1fr 70px repeat(${sampleLabels.length}, minmax(100px, 1fr))` }}
           >
             <div className="flex items-center gap-2 min-w-0">
               <span
@@ -218,21 +209,17 @@ function TxCostTable({ chains }: { chains: ChainGasData[] }) {
               />
               <span className="text-sm text-gray-200 truncate">{chain.name}</span>
             </div>
+            <div className="text-right text-sm text-gray-300 tabular-nums">
+              {chain.gasPrice !== null ? formatGwei(chain.gasPrice) : '—'}
+            </div>
             {sampleLabels.map((label) => {
               const sample = chain.samples.find((s) => s.label === label)
               const cost = sample?.estimates?.low?.cost?.usd ?? sample?.estimates?.high?.cost?.usd
-              const gasEstimateHex = sample?.estimates?.low?.gasEstimate || sample?.estimates?.high?.gasEstimate
-              const gasGwei = gasEstimateHex ? gweiFromHex(gasEstimateHex) : null
 
               return (
                 <div key={label} className="text-right">
                   {sample ? (
-                    <>
-                      <span className="text-sm text-gray-200 tabular-nums">{formatUsd(cost)}</span>
-                      {gasGwei !== null && (
-                        <div className="text-xs text-gray-600 tabular-nums">{formatGwei(gasGwei)}g</div>
-                      )}
-                    </>
+                    <span className="text-sm text-gray-200 tabular-nums">{formatUsd(cost)}</span>
                   ) : (
                     <span className="text-sm text-gray-600">—</span>
                   )}
