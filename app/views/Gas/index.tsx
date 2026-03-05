@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import type { Chain, ChainMetadata, GasSample } from '../../types'
-import { useNetworks, useNetworksMeta } from '../../store'
+import { useNetworks, useNetworksMeta, useColorway } from '../../store'
 import { isNetworkConnected } from '../../../resources/utils/chains'
 import { weiToGwei, hexToInt, roundGwei } from '../../../resources/utils'
+import { getColor, Colorway } from '../../../resources/colors'
 
 function gweiFromHex(hex?: string): number | null {
   if (!hex) return null
@@ -40,9 +41,21 @@ interface ChainGasData {
   samples: GasSample[]
 }
 
+function resolveChainColor(primaryColor: string | undefined, colorway: string): string | null {
+  if (!primaryColor) return null
+  if (primaryColor.startsWith('#')) return primaryColor
+  try {
+    const resolved = getColor(primaryColor as any, colorway as Colorway)
+    return resolved?.hex || null
+  } catch {
+    return null
+  }
+}
+
 function useChainGasData(): ChainGasData[] {
   const networks = useNetworks()
   const networksMeta = useNetworksMeta()
+  const colorway = useColorway()
 
   return useMemo(() => {
     return Object.entries(networks)
@@ -59,7 +72,7 @@ function useChainGasData(): ChainGasData[] {
           id,
           name: (chain as Chain).name,
           symbol: meta?.nativeCurrency?.symbol || 'ETH',
-          color: meta?.primaryColor || null,
+          color: resolveChainColor(meta?.primaryColor, colorway),
           connected,
           gasPrice,
           baseFee: gweiFromHex(gas?.price?.fees?.nextBaseFee),
@@ -72,7 +85,7 @@ function useChainGasData(): ChainGasData[] {
         if (a.connected !== b.connected) return a.connected ? -1 : 1
         return a.name.localeCompare(b.name)
       })
-  }, [networks, networksMeta])
+  }, [networks, networksMeta, colorway])
 }
 
 export default function GasView() {
@@ -80,8 +93,6 @@ export default function GasView() {
   const connectedChains = chains.filter((c) => c.connected)
   const hasData = connectedChains.some((c) => c.gasPrice !== null)
 
-  // Debug: log gas data to console
-  console.log('Gas data:', connectedChains.map(c => ({ name: c.name, historyLen: c.history.length, gasPrice: c.gasPrice })))
 
   return (
     <div className="space-y-6 max-w-4xl">

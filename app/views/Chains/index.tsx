@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import type { Chain, ChainMetadata, RpcHealth } from '../../types'
-import { useNetworks, useNetworksMeta } from '../../store'
+import { useNetworks, useNetworksMeta, useColorway } from '../../store'
+import { getColor, Colorway } from '../../../resources/colors'
 import { actions, sendAction } from '../../ipc'
 import { useCompact } from '../../hooks/useCompact'
 import { isNetworkConnected } from '../../../resources/utils/chains'
@@ -26,9 +27,20 @@ function truncateUrl(url: string): string {
   }
 }
 
+function resolveColor(primaryColor: string | undefined, colorway: string): string | null {
+  if (!primaryColor) return null
+  if (primaryColor.startsWith('#')) return primaryColor
+  try {
+    return getColor(primaryColor as any, colorway as Colorway)?.hex || null
+  } catch {
+    return null
+  }
+}
+
 export default function ChainsView() {
   const networks = useNetworks()
   const networksMeta = useNetworksMeta()
+  const colorway = useColorway()
   const [selectedChain, setSelectedChain] = useState<string | null>(null)
   const [discoveryOpen, setDiscoveryOpen] = useState(false)
   const compact = useCompact()
@@ -61,7 +73,7 @@ export default function ChainsView() {
             const meta = networksMeta[id]
             const connected = isNetworkConnected(chain)
             const isSelected = selectedChain === id
-            const chainColor = meta?.primaryColor || null
+            const chainColor = resolveColor(meta?.primaryColor, colorway)
             const health = meta?.rpcHealth
 
             return (

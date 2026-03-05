@@ -10,7 +10,20 @@ let mockNetworksMetaRef = () => ({})
 
 jest.mock('../../../../app/store', () => ({
   useNetworks: () => mockNetworksRef(),
-  useNetworksMeta: () => mockNetworksMetaRef()
+  useNetworksMeta: () => mockNetworksMetaRef(),
+  useColorway: () => 'dark'
+}))
+
+jest.mock('../../../../resources/colors', () => ({
+  getColor: (key) => {
+    const colors = {
+      accent1: '#00d2be', accent2: '#ff9933', accent3: '#ff00ae',
+      accent4: '#f62423', accent5: '#5ab5b2', accent6: '#8c61e8',
+      accent7: '#3eadf1', accent8: '#3c28ea'
+    }
+    return colors[key] ? { hex: colors[key] } : null
+  },
+  Colorway: { light: 'light', dark: 'dark' }
 }))
 
 jest.mock('../../../../resources/utils/chains', () => ({
