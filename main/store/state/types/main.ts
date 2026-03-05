@@ -30,6 +30,7 @@ const PreferencesSchema = {
     .boolean()
     .default(false)
     .describe("Lock an account when it's closed instead of when Framed restarts"),
+  showBuyButton: z.boolean().default(false).describe('Show fiat on-ramp button on account pages'),
   showLocalNameWithENS: z.boolean(),
   menubarGasPrice: z.boolean().default(false).describe('Show gas price in menu bar'),
   hardwareDerivation: z.string()
