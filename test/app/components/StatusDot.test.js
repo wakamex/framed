@@ -29,6 +29,12 @@ describe('StatusDot', () => {
     expect(dot.className).toContain('bg-red-400')
   })
 
+  it('renders with blue indicator for status=watch', () => {
+    render(<StatusDot status="watch" />)
+    const dot = screen.getByTitle('watch')
+    expect(dot.className).toContain('bg-blue-400')
+  })
+
   it('renders with default/neutral indicator for unknown status', () => {
     render(<StatusDot status="unknown-xyz" />)
     const dot = screen.getByTitle('unknown-xyz')

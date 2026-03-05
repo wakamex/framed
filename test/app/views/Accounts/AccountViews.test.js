@@ -227,6 +227,41 @@ describe('AccountList', () => {
     expect(mockAccountSort).toHaveBeenCalled()
   })
 
+  // Watch account shows blue dot (status=watch)
+  it('shows watch status for account with empty signer', () => {
+    const watchAccount = { id: '0xwatch1', name: 'Watch Only', signer: '' }
+    mockUseAccounts.mockReturnValue({ '0xwatch1': watchAccount })
+    mockUseSigners.mockReturnValue({})
+
+    render(<AccountList onAdd={jest.fn()} />)
+
+    const dot = screen.getByTestId('mock-status-dot')
+    expect(dot.getAttribute('data-status')).toBe('watch')
+  })
+
+  it('shows watch status for account whose signer is not in signers map', () => {
+    const account = { id: '0xold1', name: 'Orphan', signer: 'signer-gone' }
+    mockUseAccounts.mockReturnValue({ '0xold1': account })
+    mockUseSigners.mockReturnValue({}) // signer-gone not present
+
+    render(<AccountList onAdd={jest.fn()} />)
+
+    const dot = screen.getByTestId('mock-status-dot')
+    expect(dot.getAttribute('data-status')).toBe('watch')
+  })
+
+  it('shows disconnected status when signer exists but is disconnected', () => {
+    const account = { id: '0xabc123', name: 'Has Signer', signer: 'signer-1' }
+    mockUseAccounts.mockReturnValue({ '0xabc123': account })
+    mockUseSigners.mockReturnValue({ 'signer-1': { type: 'ring', status: 'disconnected' } })
+    mockGetSignerDisplayType.mockReturnValue('hot')
+
+    render(<AccountList onAdd={jest.fn()} />)
+
+    const dot = screen.getByTestId('mock-status-dot')
+    expect(dot.getAttribute('data-status')).toBe('disconnected')
+  })
+
   // 7. + Add button calls onAdd
   it('+ Add button calls onAdd callback', async () => {
     const onAdd = jest.fn()

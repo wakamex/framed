@@ -325,6 +325,15 @@ const mockState = {
           }
         },
         created: '2024-06-01'
+      },
+      '0xwatchonly000000000000000000000000000watch': {
+        id: '0xwatchonly000000000000000000000000000watch',
+        name: 'Watch Account',
+        address: '0xwatchonly000000000000000000000000000watch',
+        status: 'ok',
+        signer: '',
+        requests: {},
+        created: '2024-11-01'
       }
     },
     accountsMeta: {},
@@ -361,6 +370,10 @@ const mockState = {
       '0x5555555555555555555555555555555555555555': [
         { address: '0x0000000000000000000000000000000000000000', chainId: 1, symbol: 'ETH', name: 'Ether', decimals: 18, balance: '500000000000000000', displayBalance: '0.5' },
         { address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', chainId: 1, symbol: 'USDC', name: 'USD Coin', decimals: 6, balance: '10000000000', displayBalance: '10000' }
+      ],
+      '0xwatchonly000000000000000000000000000watch': [
+        { address: '0x0000000000000000000000000000000000000000', chainId: 1, symbol: 'ETH', name: 'Ether', decimals: 18, balance: '1000000000000000000', displayBalance: '1.0' },
+        { address: '0xd9fcd98c322942075a5c3860693e9f4f03aae07b', chainId: 1, symbol: 'EUL', name: 'Euler', decimals: 18, balance: '480000000000000000', displayBalance: '0.48' }
       ]
     },
     tokens: {
@@ -396,7 +409,11 @@ const mockState = {
     trezor: { derivation: 'standard' },
     privacy: { errorReporting: false },
     updater: { dontRemind: [], badge: null },
-    rates: {},
+    rates: {
+      '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': { usd: { price: 1.0, change24hr: 0.01 } },
+      '0x6b175474e89094c44da98b954eedeac495271d0f': { usd: { price: 1.0, change24hr: -0.02 } },
+      '0xd9fcd98c322942075a5c3860693e9f4f03aae07b': { usd: { price: 5.12, change24hr: 3.5 } }
+    },
     addressBook: {
       'contact-1': { name: 'Alice Nakamoto', address: '0xaaaa111122223333444455556666777788889999', notes: 'Cold storage wallet' },
       'contact-2': { name: 'Bob Vance', address: '0xbbbb111122223333444455556666777788889999', notes: '' },
@@ -407,7 +424,7 @@ const mockState = {
   platform: process.platform
 }
 
-const views = ['accounts', 'portfolio', 'send', 'contacts', 'signers', 'history', 'chains', 'tokens', 'settings']
+const views = ['accounts', 'portfolio', 'send', 'contacts', 'signers', 'history', 'chains', 'gas', 'tokens', 'settings']
 
 // Interactions to perform after navigating to each view.
 // Each returns a description of what was done, for logging.
