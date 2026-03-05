@@ -110,6 +110,7 @@ export interface ChainMetadata {
   }
   gas: {
     samples?: GasSample[]
+    history?: { t: number; gwei: number }[]
     price: {
       selected: string
       levels: GasLevels

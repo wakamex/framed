@@ -256,6 +256,18 @@ export function addSampleGasCosts(netType: string, netId: string, samples: any[]
   ;(state.main.networksMeta as any)[netType][netId].gas.samples = samples
 }
 
+const MAX_GAS_HISTORY = 50
+
+export function pushGasHistory(netType: string, netId: string, gweiPrice: number) {
+  const gas = (state.main.networksMeta as any)[netType][netId]?.gas
+  if (!gas) return
+  if (!gas.history) gas.history = []
+  gas.history.push({ t: Date.now(), gwei: gweiPrice })
+  if (gas.history.length > MAX_GAS_HISTORY) {
+    gas.history = gas.history.slice(-MAX_GAS_HISTORY)
+  }
+}
+
 export function setNativeCurrencyData(netType: string, netId: string | number, currency: any) {
   const meta = (state.main.networksMeta as any)[netType][netId]
   Object.assign(meta.nativeCurrency, currency)

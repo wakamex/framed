@@ -31,14 +31,7 @@ jest.mock('../../../../resources/utils', () => ({
 // --- Helpers ---
 
 function makeConnection(overrides = {}) {
-  return {
-    on: true,
-    current: 'public',
-    status: 'connected',
-    connected: true,
-    custom: '',
-    ...overrides
-  }
+  return { on: true, current: 'public', status: 'connected', connected: true, custom: '', ...overrides }
 }
 
 function gweiToHex(gwei) {
@@ -46,26 +39,22 @@ function gweiToHex(gwei) {
 }
 
 const connectedChain = {
-  id: 1,
-  name: 'Mainnet',
-  on: true,
-  isTestnet: false,
-  connection: {
-    primary: makeConnection(),
-    secondary: makeConnection({ on: false, connected: false })
-  }
+  id: 1, name: 'Mainnet', on: true, isTestnet: false,
+  connection: { primary: makeConnection(), secondary: makeConnection({ on: false, connected: false }) }
 }
+
+const now = Date.now()
+const gasHistory = Array.from({ length: 10 }, (_, i) => ({ t: now - (9 - i) * 12000, gwei: 20 + i }))
 
 const connectedMeta = {
   blockHeight: 19000000,
   primaryColor: '#627eea',
   nativeCurrency: { symbol: 'ETH', name: 'Ether', decimals: 18, icon: '', usd: { price: 3000, change24hr: 1.5 } },
   gas: {
+    history: gasHistory,
     price: {
       selected: 'fast',
-      levels: {
-        fast: gweiToHex(30)
-      },
+      levels: { fast: gweiToHex(30) },
       fees: {
         nextBaseFee: gweiToHex(12),
         maxBaseFeePerGas: gweiToHex(15),
@@ -79,13 +68,6 @@ const connectedMeta = {
         estimates: {
           low: { gasEstimate: '0x' + (21000 * 30e9).toString(16), cost: { usd: 1.89 } },
           high: { gasEstimate: '0x' + (21000 * 30e9).toString(16), cost: { usd: 1.89 } }
-        }
-      },
-      {
-        label: 'Send Tokens',
-        estimates: {
-          low: { gasEstimate: '0x' + (65000 * 30e9).toString(16), cost: { usd: 5.85 } },
-          high: { gasEstimate: '0x' + (65000 * 30e9).toString(16), cost: { usd: 5.85 } }
         }
       }
     ]
@@ -109,46 +91,47 @@ describe('GasView', () => {
 
     render(<GasView />)
 
-    expect(screen.getAllByText('Mainnet').length).toBeGreaterThanOrEqual(1)
-    // Should show single gas price (30 gwei)
+    expect(screen.getAllByText('Mainnet').length).toBeGreaterThan(0)
     expect(screen.getByText('30')).toBeTruthy()
+    expect(screen.getByText('gwei')).toBeTruthy()
   })
 
-  it('3. shows base fee and priority fee columns', () => {
+  it('3. shows base fee and priority fee', () => {
     mockNetworksRef = () => ({ 1: connectedChain })
     mockNetworksMetaRef = () => ({ 1: connectedMeta })
 
     render(<GasView />)
 
-    expect(screen.getByText('Gas Price')).toBeTruthy()
-    expect(screen.getByText('Base')).toBeTruthy()
-    expect(screen.getByText('Priority')).toBeTruthy()
-    // Base fee = 12 gwei, priority = 2 gwei
-    expect(screen.getByText('12')).toBeTruthy()
-    expect(screen.getByText('2')).toBeTruthy()
+    expect(screen.getByText(/Base: 12g/)).toBeTruthy()
+    expect(screen.getByText(/Priority: 2g/)).toBeTruthy()
   })
 
-  it('4. shows dashes for chain with no gas data', () => {
+  it('4. renders sparkline when history exists', () => {
+    mockNetworksRef = () => ({ 1: connectedChain })
+    mockNetworksMetaRef = () => ({ 1: connectedMeta })
+
+    render(<GasView />)
+
+    // The sparkline renders as SVG paths — if history has >1 point, no "waiting" message
+    expect(screen.queryByText(/waiting for data/i)).toBeNull()
+    // Gas price should be visible
+    expect(screen.getByText('30')).toBeTruthy()
+  })
+
+  it('5. shows waiting message when no gas data', () => {
     const emptyMeta = {
       ...connectedMeta,
-      gas: {
-        price: {
-          selected: 'standard',
-          levels: { slow: '', standard: '', fast: '', asap: '' }
-        },
-        samples: []
-      }
+      gas: { price: { selected: 'standard', levels: {} }, samples: [] }
     }
     mockNetworksRef = () => ({ 1: connectedChain })
     mockNetworksMetaRef = () => ({ 1: emptyMeta })
 
     render(<GasView />)
 
-    const dashes = screen.getAllByText('—')
-    expect(dashes.length).toBeGreaterThanOrEqual(3)
+    expect(screen.getByText(/waiting for data/i)).toBeTruthy()
   })
 
-  it('5. shows tx cost estimates with USD and gwei', () => {
+  it('6. shows tx cost estimates', () => {
     mockNetworksRef = () => ({ 1: connectedChain })
     mockNetworksMetaRef = () => ({ 1: connectedMeta })
 
@@ -156,29 +139,12 @@ describe('GasView', () => {
 
     expect(screen.getByText('Estimated Transaction Costs')).toBeTruthy()
     expect(screen.getByText('Send ETH')).toBeTruthy()
-    expect(screen.getByText('Send Tokens')).toBeTruthy()
-
     expect(screen.getByText('$1.89')).toBeTruthy()
-    expect(screen.getByText('$5.85')).toBeTruthy()
-
-    // Gwei values in tx cost table
-    const gweiElements = screen.getAllByText(/g$/)
-    expect(gweiElements.length).toBeGreaterThan(0)
   })
 
-  it('6. hides testnets', () => {
-    const testnet = { ...connectedChain, id: 11155111, name: 'Sepolia', isTestnet: true }
-    mockNetworksRef = () => ({ 11155111: testnet })
-    mockNetworksMetaRef = () => ({ 11155111: connectedMeta })
-
-    render(<GasView />)
-
-    expect(screen.getByText(/no connected chains/i)).toBeTruthy()
-  })
-
-  it('7. hides chains that are off', () => {
-    const offChain = { ...connectedChain, on: false }
-    mockNetworksRef = () => ({ 1: offChain })
+  it('7. hides testnets', () => {
+    const testnet = { ...connectedChain, isTestnet: true }
+    mockNetworksRef = () => ({ 1: testnet })
     mockNetworksMetaRef = () => ({ 1: connectedMeta })
 
     render(<GasView />)

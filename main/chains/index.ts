@@ -18,6 +18,7 @@ import {
   setPrimary,
   setSecondary,
   addSampleGasCosts,
+  pushGasHistory,
   setRpcHealth
 } from '../store/actions'
 import RpcHealthChecker from './health'
@@ -328,6 +329,7 @@ class ChainConnection extends EventEmitter {
 
           setGasPrices(this.type, this.chainId, { fast: addHexPrefix(gasPrice.toString(16)) })
           setGasDefault(this.type, this.chainId, 'fast')
+          pushGasHistory(this.type, this.chainId, gasPrice / 1e9)
         } else {
           const gas = await gasMonitor.getGasPrices()
           const customLevel = state.main.networksMeta[this.type]?.[this.chainId]?.gas?.price?.levels?.custom
@@ -336,6 +338,7 @@ class ChainConnection extends EventEmitter {
             ...gas,
             custom: customLevel || gas.fast
           })
+          if (gas.fast) pushGasHistory(this.type, this.chainId, parseInt(gas.fast, 16) / 1e9)
         }
 
         if (connectedProvider.connected) {

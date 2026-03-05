@@ -22,6 +22,11 @@ function formatUsd(usd: number | null | undefined): string {
   return `$${usd.toFixed(2)}`
 }
 
+interface GasPoint {
+  t: number
+  gwei: number
+}
+
 interface ChainGasData {
   id: string
   name: string
@@ -31,6 +36,7 @@ interface ChainGasData {
   gasPrice: number | null
   baseFee: number | null
   priorityFee: number | null
+  history: GasPoint[]
   samples: GasSample[]
 }
 
@@ -46,7 +52,6 @@ function useChainGasData(): ChainGasData[] {
         const gas = meta?.gas
         const connected = isNetworkConnected(chain as Chain)
 
-        // Use the best available gas price: fast level, or fall back to any level
         const levels = gas?.price?.levels
         const gasPrice = gweiFromHex(levels?.fast) ?? gweiFromHex(levels?.standard) ?? gweiFromHex(levels?.slow)
 
@@ -59,6 +64,7 @@ function useChainGasData(): ChainGasData[] {
           gasPrice,
           baseFee: gweiFromHex(gas?.price?.fees?.nextBaseFee),
           priorityFee: gweiFromHex(gas?.price?.fees?.maxPriorityFeePerGas),
+          history: (gas?.history as GasPoint[]) || [],
           samples: gas?.samples || []
         }
       })
@@ -79,7 +85,11 @@ export default function GasView() {
       <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wide">Gas Tracker</h2>
 
       {connectedChains.length > 0 ? (
-        <GasOverview chains={connectedChains} />
+        <div className="space-y-3">
+          {connectedChains.map((chain) => (
+            <ChainGasCard key={chain.id} chain={chain} />
+          ))}
+        </div>
       ) : (
         <div className="text-sm text-gray-500 py-8 text-center">
           No connected chains. Enable chains in the Chains view to track gas.
@@ -93,54 +103,76 @@ export default function GasView() {
   )
 }
 
-function GasOverview({ chains }: { chains: ChainGasData[] }) {
+function ChainGasCard({ chain }: { chain: ChainGasData }) {
   return (
-    <div className="bg-gray-800/50 rounded-lg overflow-hidden">
-      <div className="grid grid-cols-[1fr_80px_80px_80px] gap-2 px-4 py-2.5 border-b border-gray-700/50 text-xs font-medium text-gray-500 uppercase tracking-wide">
-        <div>Chain</div>
-        <div className="text-right">Gas Price</div>
-        <div className="text-right">Base</div>
-        <div className="text-right">Priority</div>
+    <div className="bg-gray-800/50 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span
+            className="w-2 h-2 rounded-full shrink-0"
+            style={{ backgroundColor: chain.color || undefined }}
+          />
+          <span className="text-sm font-medium text-gray-200">{chain.name}</span>
+        </div>
+        {chain.gasPrice !== null && (
+          <div className="flex items-baseline gap-1">
+            <span className="text-lg font-semibold text-gray-100 tabular-nums">{formatGwei(chain.gasPrice)}</span>
+            <span className="text-xs text-gray-500">gwei</span>
+          </div>
+        )}
       </div>
 
-      {chains.map((chain) => (
-        <div
-          key={chain.id}
-          className="grid grid-cols-[1fr_80px_80px_80px] gap-2 px-4 py-3 border-b border-gray-800/50 last:border-0 hover:bg-gray-800/30 transition-colors"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <span
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: chain.color || undefined }}
-            />
-            <span className="text-sm text-gray-200 truncate">{chain.name}</span>
-          </div>
+      {/* Sparkline */}
+      {chain.history.length > 1 && (
+        <Sparkline points={chain.history} color={chain.color || '#6b7280'} />
+      )}
 
-          {chain.gasPrice !== null ? (
-            <>
-              <div className="text-right">
-                <span className="text-sm text-gray-100 tabular-nums">{formatGwei(chain.gasPrice)}</span>
-                <span className="text-xs text-gray-600 ml-0.5">g</span>
-              </div>
-              <div className="text-right">
-                <span className="text-sm text-gray-400 tabular-nums">{formatGwei(chain.baseFee)}</span>
-                {chain.baseFee !== null && <span className="text-xs text-gray-600 ml-0.5">g</span>}
-              </div>
-              <div className="text-right">
-                <span className="text-sm text-gray-400 tabular-nums">{formatGwei(chain.priorityFee)}</span>
-                {chain.priorityFee !== null && <span className="text-xs text-gray-600 ml-0.5">g</span>}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-right text-sm text-gray-600">—</div>
-              <div className="text-right text-sm text-gray-600">—</div>
-              <div className="text-right text-sm text-gray-600">—</div>
-            </>
-          )}
+      {/* Base / Priority breakdown */}
+      {(chain.baseFee !== null || chain.priorityFee !== null) && (
+        <div className="flex gap-4 mt-2 text-xs text-gray-500">
+          {chain.baseFee !== null && <span>Base: {formatGwei(chain.baseFee)}g</span>}
+          {chain.priorityFee !== null && <span>Priority: {formatGwei(chain.priorityFee)}g</span>}
         </div>
-      ))}
+      )}
+
+      {chain.gasPrice === null && chain.history.length <= 1 && (
+        <div className="text-sm text-gray-600 py-2">Waiting for data...</div>
+      )}
     </div>
+  )
+}
+
+function Sparkline({ points, color }: { points: GasPoint[]; color: string }) {
+  const W = 400
+  const H = 48
+
+  const values = points.map((p) => p.gwei)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 1
+
+  const pathPoints = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * W
+    const y = H - ((v - min) / range) * (H - 4) - 2
+    return `${x},${y}`
+  })
+
+  const linePath = `M${pathPoints.join(' L')}`
+
+  // Gradient fill below line
+  const fillPath = `${linePath} L${W},${H} L0,${H} Z`
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={`grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.2" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={fillPath} fill={`url(#grad-${color.replace('#', '')})`} />
+      <path d={linePath} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+    </svg>
   )
 }
 
