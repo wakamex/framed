@@ -297,6 +297,27 @@ const mockState = {
             data: {
               decodedMessage: 'Sign this message to verify your identity on Uniswap. Nonce: 42'
             }
+          },
+          'req-optimism-tx': {
+            handlerId: 'req-optimism-tx',
+            type: 'transaction',
+            status: 'pending',
+            origin: 'app.velodrome.finance',
+            account: '0x5555555555555555555555555555555555555555',
+            created: Date.now(),
+            payload: {
+              jsonrpc: '2.0', id: 15, method: 'eth_sendTransaction',
+              params: [{ from: '0x5555555555555555555555555555555555555555', to: '0x9560e827af36c94d2ac33a39bce1fe78631088db', value: '0x0', chainId: '0xa', gas: '0x30d40' }]
+            },
+            data: {
+              from: '0x5555555555555555555555555555555555555555',
+              to: '0x9560e827af36c94d2ac33a39bce1fe78631088db',
+              value: '0x0', chainId: '0xa', gasLimit: '0x30d40',
+              type: '0x2', maxFeePerGas: '0x5f5e100', maxPriorityFeePerGas: '0xf4240'
+            },
+            chainData: {
+              optimism: { l1Fees: '0x2386f26fc10000' }
+            }
           }
         },
         created: '2024-06-01'
@@ -310,7 +331,8 @@ const mockState = {
       'uniswap.org': { chain: { id: 1, type: 'ethereum' }, name: 'Uniswap', session: { requests: 5, startedAt: Date.now() - 3600000, lastUpdatedAt: Date.now() } },
       'app.aave.com': { chain: { id: 1, type: 'ethereum' }, name: 'Aave', session: { requests: 3, startedAt: Date.now() - 7200000, lastUpdatedAt: Date.now() } },
       'opensea.io': { chain: { id: 1, type: 'ethereum' }, name: 'OpenSea', session: { requests: 8, startedAt: Date.now() - 86400000, lastUpdatedAt: Date.now() } },
-      'lido.fi': { chain: { id: 1, type: 'ethereum' }, name: 'Lido', session: { requests: 2, startedAt: Date.now() - 43200000, lastUpdatedAt: Date.now() } }
+      'lido.fi': { chain: { id: 1, type: 'ethereum' }, name: 'Lido', session: { requests: 2, startedAt: Date.now() - 43200000, lastUpdatedAt: Date.now() } },
+      'app.velodrome.finance': { chain: { id: 10, type: 'ethereum' }, name: 'Velodrome', session: { requests: 1, startedAt: Date.now() - 1800000, lastUpdatedAt: Date.now() } }
     },
     permissions: {
       '0x1234567890abcdef1234567890abcdef12345678': {
@@ -755,6 +777,29 @@ const interactions = {
         const trezorBtn = btns.find(b => b.textContent.includes('Trezor'));
         if (trezorBtn) { trezorBtn.click(); return 'clicked Trezor Account'; }
         return 'no Trezor Account button found';
+      })()`
+    },
+    {
+      name: 'optimism-l1-fee-transaction',
+      js: `(() => {
+        return new Promise(resolve => {
+          let attempts = 0;
+          const findOPTx = () => {
+            if (attempts++ > 10) { resolve('Optimism tx not found'); return; }
+            const text = document.body.innerText;
+            if (text.includes('L1 Data Fee') || text.includes('Velodrome')) {
+              resolve('Optimism L1 fee transaction visible');
+              return;
+            }
+            const btns = Array.from(document.querySelectorAll('button'));
+            const nextBtn = btns.find(b => b.textContent.includes('Next') && !b.disabled);
+            const prevBtn = btns.find(b => b.textContent.includes('Prev') && !b.disabled);
+            if (nextBtn) { nextBtn.click(); setTimeout(findOPTx, 300); }
+            else if (prevBtn) { prevBtn.click(); setTimeout(findOPTx, 300); }
+            else resolve('no nav buttons, text: ' + text.substring(0, 100));
+          };
+          setTimeout(findOPTx, 300);
+        });
       })()`
     }
   ],
