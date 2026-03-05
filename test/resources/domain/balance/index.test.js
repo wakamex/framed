@@ -92,10 +92,10 @@ describe('#createBalance price availability', () => {
     // 0x3635C9ADC5DEA00000 = 1000 * 10^18 → 1000 tokens
     const shib = { balance: '0x3635C9ADC5DEA00000', decimals: 18, address: '0xshib', chainId: 1, symbol: 'SHIB', name: 'SHIB' }
     const b = createBalance(shib, { price: 0.00001, change24hr: 5.0 })
-    // 1000 * 0.00001 = 0.01 → very small total value, rounds to "0" in display
+    // 1000 * 0.00001 = 0.01 → very small total value, shows "<1"
     expect(b.totalValue.toNumber()).toBeGreaterThan(0)
     expect(b.totalValue.toNumber()).toBeCloseTo(0.01)
-    expect(b.displayValue).not.toContain('?')
+    expect(b.displayValue).toBe('<1')
   })
 
   it('handles very large price (e.g. BTC)', () => {
@@ -228,6 +228,43 @@ describe('#createBalance with subscript price notation', () => {
     const b = createBalance(token, { price: 2500, change24hr: 1.5 })
     expect(b.price).toBe('2,500.00')
     expect(b.price).not.toContain('₀')
+  })
+})
+
+describe('#createBalance sub-dollar display', () => {
+  it('shows "<1" for total value between $0 and $1 (e.g. 0.48 EUL at $1.10)', () => {
+    // This is the exact EUL scenario: small balance * low price = sub-dollar value
+    const eul = { balance: '0x6A94D74F43000', decimals: 18, address: '0xd9fcd98c', chainId: 1, symbol: 'EUL', name: 'Euler' }
+    // 0x6A94D74F43000 ≈ 0.0019 ETH-scale, but let's use a simpler value
+    const b = createBalance(
+      { balance: '0x6A94D74F4300000', decimals: 18, address: '0xeul', chainId: 1, symbol: 'EUL', name: 'Euler' },
+      { price: 1.10, change24hr: 2.0 }
+    )
+    // totalValue should be small but non-zero
+    expect(b.totalValue.toNumber()).toBeGreaterThan(0)
+    expect(b.totalValue.toNumber()).toBeLessThan(1)
+    // MUST show "<1", NOT "0" — the old bug would show "0" and hide the price entirely
+    expect(b.displayValue).toBe('<1')
+  })
+
+  it('shows "<1" for 0.01 USDC at $1', () => {
+    const usdc = { balance: '0x2710', decimals: 6, address: '0xusdc', chainId: 1, symbol: 'USDC', name: 'USD Coin' }
+    // 0x2710 = 10000 → 0.01 USDC → $0.01
+    const b = createBalance(usdc, { price: 1.0, change24hr: 0 })
+    expect(b.totalValue.toNumber()).toBeCloseTo(0.01)
+    expect(b.displayValue).toBe('<1')
+  })
+
+  it('does NOT show "<1" for values >= $1', () => {
+    const token = { balance: '0xDE0B6B3A7640000', decimals: 18, address: '0x0', chainId: 1, symbol: 'ETH', name: 'Ether' }
+    const b = createBalance(token, { price: 2000, change24hr: 0 })
+    expect(b.displayValue).toBe('2,000')
+  })
+
+  it('shows "0" only when totalValue is exactly zero (no quote)', () => {
+    const token = { balance: '0xDE0B6B3A7640000', decimals: 18, address: '0x0', chainId: 1, symbol: 'ETH', name: 'Ether' }
+    const b = createBalance(token, undefined)
+    expect(b.displayValue).toBe('0')
   })
 })
 

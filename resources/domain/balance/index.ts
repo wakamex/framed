@@ -81,7 +81,11 @@ export function createBalance(rawBalance: Balance, quote?: Rate): DisplayedBalan
     price: formatUsdRate(usdRate),
     priceChange: !usdRate.isZero() && !usdRate.isNaN() && change24hr.toFixed(2),
     totalValue: safeTotalValue,
-    displayValue: safeTotalValue.isZero() ? '0' : formatUsdRate(safeTotalValue, 0)
+    displayValue: safeTotalValue.isZero()
+      ? '0'
+      : safeTotalValue.lt(1) && safeTotalValue.gt(0)
+        ? '<1'
+        : formatUsdRate(safeTotalValue, 0)
   }
 }
 
