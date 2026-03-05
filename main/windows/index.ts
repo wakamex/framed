@@ -67,7 +67,7 @@ function initMainWindow() {
     mainWindow?.show()
   })
 
-  if (devToolsEnabled) {
+  if (isDev || devToolsEnabled) {
     mainWindow.webContents.openDevTools()
   }
 }

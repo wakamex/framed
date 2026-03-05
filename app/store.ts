@@ -126,15 +126,8 @@ export function setView(view: AppState['currentView']) {
   state.currentView = view
 }
 
-// Callback set by app/index.tsx to notify main process on account selection
-let onAccountSelected: ((id: string) => void) | null = null
-export function setAccountSelectedCallback(cb: (id: string) => void) {
-  onAccountSelected = cb
-}
-
 export function setSelectedAccount(id: string | null) {
   state.selectedAccount = id
-  if (id && onAccountSelected) onAccountSelected(id)
 }
 
 // Typed selector hooks (use useSnapshot for automatic fine-grained reactivity)
