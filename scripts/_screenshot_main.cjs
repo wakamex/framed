@@ -350,6 +350,15 @@ const interactions = {
       })()`
     },
     {
+      name: 'account-rename-form',
+      js: `(() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const renameBtn = btns.find(b => b.textContent.trim() === 'rename');
+        if (renameBtn) { renameBtn.click(); return 'clicked rename button'; }
+        return 'no rename button found';
+      })()`
+    },
+    {
       name: 'remove-account-modal',
       js: `(() => {
         // First ensure we're in account detail view (click first account if needed)
