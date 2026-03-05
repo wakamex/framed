@@ -160,6 +160,90 @@ describeOrSkip('Live balance fetching', () => {
   })
 })
 
+describeOrSkip('Live balance → createBalance pipeline', () => {
+  const { createBalance } = require('../../../../resources/domain/balance')
+
+  it('native ETH balance from RPC passes through createBalance without error', async () => {
+    const rawHex = await rpcCall(
+      RPC_ENDPOINTS[1].url,
+      'eth_getBalance',
+      [KNOWN_ADDRESS, 'latest']
+    )
+
+    const balance = createBalance(
+      { address: '0x0000000000000000000000000000000000000000', chainId: 1, symbol: 'ETH', name: 'Ether', decimals: 18, balance: rawHex, displayBalance: '' },
+      { price: 3200, change24hr: 1.5 }
+    )
+
+    expect(balance.displayBalance).toBeDefined()
+    expect(balance.totalValue.toNumber()).toBeGreaterThan(0)
+  })
+
+  it('ERC-20 USDC balance from RPC passes through createBalance without error', async () => {
+    const paddedAddress = KNOWN_ADDRESS.slice(2).toLowerCase().padStart(64, '0')
+    const data = '0x70a08231' + paddedAddress
+
+    const rawHex = await rpcCall(RPC_ENDPOINTS[1].url, 'eth_call', [
+      { to: USDC_MAINNET.address, data },
+      'latest'
+    ])
+
+    // Raw eth_call returns 32-byte padded uint256
+    const rawBalance = '0x' + rawHex.slice(2).replace(/^0+/, '') || '0x0'
+
+    const balance = createBalance(
+      { address: USDC_MAINNET.address, chainId: 1, symbol: 'USDC', name: 'USD Coin', decimals: USDC_MAINNET.decimals, balance: rawBalance, displayBalance: '' },
+      { price: 1.0, change24hr: 0 }
+    )
+
+    expect(balance.displayBalance).toBeDefined()
+    expect(balance.totalValue.isNaN()).toBe(false)
+  })
+
+  it('native balance with no quote (no price data) does not throw', async () => {
+    const rawHex = await rpcCall(
+      RPC_ENDPOINTS[1].url,
+      'eth_getBalance',
+      [KNOWN_ADDRESS, 'latest']
+    )
+
+    const balance = createBalance(
+      { address: '0x0000000000000000000000000000000000000000', chainId: 1, symbol: 'ETH', name: 'Ether', decimals: 18, balance: rawHex, displayBalance: '' },
+      undefined
+    )
+
+    expect(balance.displayBalance).toBeDefined()
+    expect(balance.totalValue.toNumber()).toBe(0)
+    expect(balance.price).toBe('?')
+  })
+
+  it('balance with decimals=0 (like some NFT-adjacent tokens) does not throw', async () => {
+    const balance = createBalance(
+      { address: '0xdeadbeef', chainId: 1, symbol: 'TEST', name: 'Test', decimals: 0, balance: '0x64', displayBalance: '' },
+      undefined
+    )
+
+    expect(balance.displayBalance).toBe('100.00')
+  })
+
+  it('balance with missing decimals (undefined) does not throw', async () => {
+    const rawHex = await rpcCall(
+      RPC_ENDPOINTS[1].url,
+      'eth_getBalance',
+      [KNOWN_ADDRESS, 'latest']
+    )
+
+    // Simulates what happens when chain balance data arrives without decimals field
+    const balance = createBalance(
+      { address: '0x0000000000000000000000000000000000000000', chainId: 1, symbol: 'ETH', name: 'Ether', decimals: undefined, balance: rawHex, displayBalance: '' },
+      { price: 3200, change24hr: 1.5 }
+    )
+
+    expect(balance.displayBalance).toBeDefined()
+    expect(balance.totalValue.isNaN()).toBe(false)
+  })
+})
+
 describeOrSkip('Live multicall', () => {
   // Multicall3 is deployed at same address on all chains
   const MULTICALL3 = '0xcA11bde05977b3631167028862bE2a173976CA11'
