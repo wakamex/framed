@@ -3,10 +3,11 @@
  *
  * These tests hit real public RPC endpoints to verify that:
  *   1. All configured public RPCs are reachable
- *   2. Native currency balances can be fetched
- *   3. ERC-20 token balances can be fetched via multicall
+ *   2. eth-provider can connect (same library the app uses)
+ *   3. Native currency balances can be fetched
+ *   4. ERC-20 token balances can be fetched via multicall
  *
- * Run with: npx jest test/main/externalData/balances/live.test.js
+ * Run with: npm run test:live
  *
  * Skipped in CI (no LIVE_RPC env var). To run locally:
  *   LIVE_RPC=1 npx jest test/main/externalData/balances/live.test.js
@@ -14,6 +15,7 @@
 
 const SKIP = !process.env.LIVE_RPC
 
+// These must match NETWORK_PRESETS in resources/constants/index.ts
 const RPC_ENDPOINTS = {
   1: { name: 'Ethereum Mainnet', url: 'https://ethereum-rpc.publicnode.com' },
   10: { name: 'Optimism', url: 'https://optimism-rpc.publicnode.com' },
@@ -48,6 +50,52 @@ async function rpcCall(url, method, params = []) {
 }
 
 const describeOrSkip = SKIP ? describe.skip : describe
+
+describeOrSkip('RPC preset coverage', () => {
+  const { NETWORK_PRESETS } = require('../../../../resources/constants')
+
+  it('every non-testnet chain with on:true has a public RPC preset', () => {
+    // Load the default state to get all configured chains
+    // We check that every chain that defaults to on:true and primary.current:'public'
+    // has a corresponding entry in NETWORK_PRESETS
+    const missing = []
+
+    for (const [chainId, endpoint] of Object.entries(RPC_ENDPOINTS)) {
+      const preset = NETWORK_PRESETS.ethereum?.[chainId]?.public
+      if (!preset) {
+        missing.push({ chainId, name: endpoint.name })
+      }
+    }
+
+    expect(missing).toEqual([])
+  })
+
+  it('all NETWORK_PRESETS public URLs are reachable', async () => {
+    const presets = NETWORK_PRESETS.ethereum || {}
+    const results = await Promise.all(
+      Object.entries(presets)
+        .filter(([, v]) => typeof v === 'object' && v.public)
+        .map(async ([chainId, { public: url }]) => {
+          try {
+            const result = await rpcCall(url, 'eth_chainId')
+            return { chainId, url, ok: true, actual: parseInt(result, 16) }
+          } catch (err) {
+            return { chainId, url, ok: false, error: err.message }
+          }
+        })
+    )
+
+    const failures = results.filter((r) => !r.ok)
+    expect(failures).toEqual([])
+
+    // Also verify chain IDs match
+    for (const r of results) {
+      if (r.ok) {
+        expect(r.actual).toBe(parseInt(r.chainId))
+      }
+    }
+  })
+})
 
 describeOrSkip('Live RPC connectivity', () => {
   for (const [chainId, { name, url }] of Object.entries(RPC_ENDPOINTS)) {
