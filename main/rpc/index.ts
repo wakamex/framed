@@ -217,6 +217,7 @@ const rpc: Record<string, (...args: any[]) => void> = {
       const dataLines = hasHeader ? lines.slice(1) : lines
 
       const results: Array<{ name: string; chainId: number; address: string; error?: string }> = []
+      const added = new Set<string>()
 
       for (const line of dataLines) {
         const parts = line.split(',').map((p) => p.trim())
@@ -237,7 +238,17 @@ const rpc: Record<string, (...args: any[]) => void> = {
           continue
         }
 
-        accounts.add(address, name, { type: 'Address' })
+        const normalized = address.toLowerCase()
+        if (added.has(normalized)) {
+          results.push({ name, chainId, address })
+          continue
+        }
+        added.add(normalized)
+
+        // Yield to event loop between account creations to avoid blocking
+        await new Promise<void>((resolve) => {
+          accounts.add(address, name, { type: 'Address' }, () => resolve())
+        })
         results.push({ name, chainId, address })
       }
 
