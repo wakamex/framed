@@ -83,9 +83,10 @@ export default function PortfolioView() {
 
         const isNative = bal.address === NATIVE_CURRENCY
         const chainMeta = networksMeta[String(bal.chainId)]
+        const tokenRate = rates[bal.address]?.usd || rates[bal.address.toLowerCase()]?.usd
         const usdPrice = isNative
           ? (chainMeta?.nativeCurrency?.usd?.price ?? null)
-          : (rates[bal.address]?.usd?.price ?? null)
+          : (tokenRate?.price ?? null)
         const usdValue = usdPrice != null ? amount * usdPrice : null
 
         const entry: AggregatedBalance = {

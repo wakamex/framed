@@ -47,8 +47,11 @@ export default function AccountDetail() {
         let quote
         if (isNativeCurrency(b.address) && chainMeta?.nativeCurrency?.usd) {
           quote = { price: chainMeta.nativeCurrency.usd.price, change24hr: chainMeta.nativeCurrency.usd.change24hr }
-        } else if (rates[b.address]?.usd) {
-          quote = { price: rates[b.address].usd.price, change24hr: rates[b.address].usd.change24hr }
+        } else {
+          const rate = rates[b.address]?.usd || rates[b.address.toLowerCase()]?.usd
+          if (rate) {
+            quote = { price: rate.price, change24hr: rate.change24hr }
+          }
         }
         return createBalance(b, quote)
       })
