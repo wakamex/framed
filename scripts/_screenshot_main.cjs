@@ -194,6 +194,16 @@ const mockState = {
           }
         },
         created: '2024-03-15'
+      },
+      '0x7777777777777777777777777777777777777777': {
+        id: '0x7777777777777777777777777777777777777777',
+        name: 'Watch Account',
+        address: '0x7777777777777777777777777777777777777777',
+        status: 'ok',
+        signer: '',
+        requests: {},
+        ensName: 'vitalik.eth',
+        created: '2024-06-01'
       }
     },
     accountsMeta: {},
@@ -216,6 +226,10 @@ const mockState = {
       ],
       '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd': [
         { address: '0x0000000000000000000000000000000000000000', chainId: 1, symbol: 'ETH', name: 'Ether', decimals: 18, balance: '15000000000000000000', displayBalance: '15.0' }
+      ],
+      '0x7777777777777777777777777777777777777777': [
+        { address: '0x0000000000000000000000000000000000000000', chainId: 1, symbol: 'ETH', name: 'Ether', decimals: 18, balance: '32000000000000000000', displayBalance: '32.0' },
+        { address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', chainId: 1, symbol: 'USDC', name: 'USD Coin', decimals: 6, balance: '10000000000', displayBalance: '10000' }
       ]
     },
     tokens: {
@@ -323,6 +337,15 @@ const interactions = {
           if (hwBtn) { hwBtn.click(); resolve('clicked: ' + hwBtn.textContent.substring(0, 40)); }
           else resolve('no Hardware Wallet button found, buttons: ' + btns.map(b => b.textContent.substring(0, 20)).join(' | '));
         }, 300));
+      })()`
+    },
+    {
+      name: 'watch-account-detail',
+      js: `(() => {
+        const btns = Array.from(document.querySelectorAll('main button'));
+        const watchBtn = btns.find(b => b.textContent.includes('Watch Account') || b.textContent.includes('vitalik'));
+        if (watchBtn) { watchBtn.click(); return 'clicked: ' + watchBtn.textContent.substring(0, 40); }
+        return 'no watch account button found';
       })()`
     }
   ],
