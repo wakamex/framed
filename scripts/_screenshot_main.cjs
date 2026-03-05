@@ -1994,22 +1994,28 @@ app.whenReady().then(async () => {
   // Wait for React to re-render with compact layout
   await new Promise(r => setTimeout(r, 800))
 
+  // In compact mode the nav has a close button (×) at index 0, so NavItem indices start at 1
   const compactViews = [
-    { name: 'accounts', navIndex: 0 },
-    { name: 'portfolio', navIndex: 1 },
-    { name: 'send', navIndex: 2 },
-    { name: 'contacts', navIndex: 3 },
-    { name: 'signers', navIndex: 4 },
-    { name: 'history', navIndex: 5 },
-    { name: 'chains', navIndex: 6 },
-    { name: 'tokens', navIndex: 7 },
-    { name: 'settings', navIndex: 8 }
+    { name: 'accounts', navIndex: 1 },
+    { name: 'portfolio', navIndex: 2 },
+    { name: 'send', navIndex: 3 },
+    { name: 'contacts', navIndex: 4 },
+    { name: 'signers', navIndex: 5 },
+    { name: 'history', navIndex: 6 },
+    { name: 'chains', navIndex: 7 },
+    { name: 'gas', navIndex: 8 },
+    { name: 'tokens', navIndex: 9 },
+    { name: 'settings', navIndex: 10 }
   ]
 
   for (const { name: compactViewName, navIndex } of compactViews) {
     try {
       const result = await win.webContents.executeJavaScript(`
-        (() => {
+        (async () => {
+          // In compact mode the sidebar is hidden; click the Menu button to open it
+          const menuBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Menu'));
+          if (menuBtn) menuBtn.click();
+          await new Promise(r => setTimeout(r, 300));
           const buttons = document.querySelectorAll('nav button');
           if (buttons[${navIndex}]) {
             buttons[${navIndex}].click();
@@ -2023,6 +2029,9 @@ app.whenReady().then(async () => {
       console.log('[Compact Nav Error]', err.message)
     }
 
+    // Wait for sidebar to close and view to render
+    await new Promise(r => setTimeout(r, 500))
+
     const compactName = String(step++).padStart(2, '0') + '-compact-' + compactViewName
     const compactPng = await captureScreenshot(win, compactName)
     if (!validateScreenshot(compactPng, compactName)) failures++
@@ -2033,9 +2042,12 @@ app.whenReady().then(async () => {
   try {
     // Navigate to accounts view (navIndex 0)
     await win.webContents.executeJavaScript(`
-      (() => {
+      (async () => {
+        const menuBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Menu'));
+        if (menuBtn) menuBtn.click();
+        await new Promise(r => setTimeout(r, 300));
         const buttons = document.querySelectorAll('nav button');
-        if (buttons[0]) { buttons[0].click(); return 'clicked accounts nav'; }
+        if (buttons[1]) { buttons[1].click(); return 'clicked accounts nav'; }
         return 'no nav button';
       })()
     `)
@@ -2074,15 +2086,18 @@ app.whenReady().then(async () => {
   await new Promise(r => setTimeout(r, 800))
 
   const lightCompactViews = [
-    { name: 'accounts', navIndex: 0 },
-    { name: 'portfolio', navIndex: 1 },
-    { name: 'settings', navIndex: 8 }
+    { name: 'accounts', navIndex: 1 },
+    { name: 'portfolio', navIndex: 2 },
+    { name: 'settings', navIndex: 10 }
   ]
 
   for (const { name: lightCompactViewName, navIndex } of lightCompactViews) {
     try {
       const result = await win.webContents.executeJavaScript(`
-        (() => {
+        (async () => {
+          const menuBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Menu'));
+          if (menuBtn) menuBtn.click();
+          await new Promise(r => setTimeout(r, 300));
           const buttons = document.querySelectorAll('nav button');
           if (buttons[${navIndex}]) {
             buttons[${navIndex}].click();
@@ -2095,6 +2110,8 @@ app.whenReady().then(async () => {
     } catch (err) {
       console.log('[Light Compact Nav Error]', err.message)
     }
+
+    await new Promise(r => setTimeout(r, 500))
 
     const lightCompactName = String(step++).padStart(2, '0') + '-light-compact-' + lightCompactViewName
     const lightCompactPng = await captureScreenshot(win, lightCompactName)
