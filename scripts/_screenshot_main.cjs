@@ -163,6 +163,39 @@ const mockState = {
               gasLimit: '0x5208',
               gasPrice: '0x5d21dba00'
             }
+          },
+          'req-access': {
+            handlerId: 'req-access',
+            type: 'access',
+            status: 'pending',
+            origin: 'app.uniswap.org',
+            account: '0x1234567890abcdef1234567890abcdef12345678',
+            created: Date.now()
+          },
+          'req-addchain': {
+            handlerId: 'req-addchain',
+            type: 'addChain',
+            status: 'pending',
+            origin: 'bridge.base.org',
+            account: '0x1234567890abcdef1234567890abcdef12345678',
+            created: Date.now(),
+            chain: { id: 8453, type: 'ethereum', name: 'Base', symbol: 'ETH', explorer: 'https://basescan.org' }
+          },
+          'req-sign': {
+            handlerId: 'req-sign',
+            type: 'signTypedData',
+            status: 'pending',
+            origin: 'opensea.io',
+            account: '0x1234567890abcdef1234567890abcdef12345678',
+            created: Date.now(),
+            typedMessage: {
+              data: {
+                primaryType: 'Order',
+                domain: { name: 'OpenSea', chainId: 1 },
+                message: { maker: '0x1234567890abcdef1234567890abcdef12345678', price: '1000000000000000000' }
+              },
+              version: 'V4'
+            }
           }
         },
         ensName: 'alice.eth',
@@ -394,6 +427,89 @@ const interactions = {
             else resolve('No next button available, overlay text: ' + text.substring(0, 100));
           };
           setTimeout(findEIP1559, 300);
+        });
+      })()`
+    },
+    {
+      name: 'queue-indicator-overview',
+      js: `(() => {
+        // Navigate back to the first request to show the queue indicator at position 1 of N
+        return new Promise(resolve => {
+          let attempts = 0;
+          const goToStart = () => {
+            if (attempts++ > 12) { resolve('Reached start or max attempts'); return; }
+            const btns = Array.from(document.querySelectorAll('button'));
+            const prevBtn = btns.find(b => b.textContent.trim().includes('Prev') && !b.disabled);
+            if (prevBtn) { prevBtn.click(); setTimeout(goToStart, 300); }
+            else resolve('At first request — queue indicator shows 1 of N');
+          };
+          setTimeout(goToStart, 300);
+        });
+      })()`
+    },
+    {
+      name: 'queue-connection-request',
+      js: `(() => {
+        // Navigate forward to the 'access' request type, showing 'Connection' in queue indicator
+        return new Promise(resolve => {
+          let attempts = 0;
+          const find = () => {
+            if (attempts++ > 10) { resolve('Connection request not found after 10 attempts'); return; }
+            const text = document.body.innerText;
+            if (text.includes('Account Access') && text.includes('wants to connect')) {
+              resolve('Connection (access) request visible with queue indicator');
+              return;
+            }
+            const btns = Array.from(document.querySelectorAll('button'));
+            const nextBtn = btns.find(b => b.textContent.trim().includes('Next') && !b.disabled);
+            if (nextBtn) { nextBtn.click(); setTimeout(find, 300); }
+            else resolve('No Next button available, text: ' + text.substring(0, 80));
+          };
+          setTimeout(find, 300);
+        });
+      })()`
+    },
+    {
+      name: 'queue-addchain-request',
+      js: `(() => {
+        // Navigate forward to the 'addChain' request type, showing 'Add Chain' in queue indicator
+        return new Promise(resolve => {
+          let attempts = 0;
+          const find = () => {
+            if (attempts++ > 10) { resolve('Add Chain request not found after 10 attempts'); return; }
+            const text = document.body.innerText;
+            if (text.includes('Add Chain') && text.includes('wants to add a network')) {
+              resolve('Add Chain request visible with queue indicator');
+              return;
+            }
+            const btns = Array.from(document.querySelectorAll('button'));
+            const nextBtn = btns.find(b => b.textContent.trim().includes('Next') && !b.disabled);
+            if (nextBtn) { nextBtn.click(); setTimeout(find, 300); }
+            else resolve('No Next button available, text: ' + text.substring(0, 80));
+          };
+          setTimeout(find, 300);
+        });
+      })()`
+    },
+    {
+      name: 'queue-typed-data-request',
+      js: `(() => {
+        // Navigate forward to the 'signTypedData' request from opensea.io, showing 'Typed Data' in queue indicator
+        return new Promise(resolve => {
+          let attempts = 0;
+          const find = () => {
+            if (attempts++ > 10) { resolve('Typed Data request not found after 10 attempts'); return; }
+            const text = document.body.innerText;
+            if (text.includes('Sign Data') && text.includes('opensea.io')) {
+              resolve('Typed Data (signTypedData) request from opensea.io visible with queue indicator');
+              return;
+            }
+            const btns = Array.from(document.querySelectorAll('button'));
+            const nextBtn = btns.find(b => b.textContent.trim().includes('Next') && !b.disabled);
+            if (nextBtn) { nextBtn.click(); setTimeout(find, 300); }
+            else resolve('No Next button available, text: ' + text.substring(0, 80));
+          };
+          setTimeout(find, 300);
         });
       })()`
     }
