@@ -133,8 +133,6 @@ const init = () => {
 const send = (channel: string, ...args: string[]) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(channel, ...args)
-  } else {
-    log.error(new Error('Main window does not exist (windows.send)'))
   }
 }
 
