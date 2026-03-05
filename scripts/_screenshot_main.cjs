@@ -211,6 +211,13 @@ const mockState = {
       'hot-signer-1': { id: 'hot-signer-1', type: 'ring', name: 'Hot Signer', status: 'ok', addresses: ['0x1234567890abcdef1234567890abcdef12345678'], createdAt: Date.now() },
       'ledger-1': { id: 'ledger-1', type: 'ledger', name: 'Ledger Nano S', status: 'ok', addresses: ['0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'], model: 'Nano S', createdAt: Date.now() }
     },
+    txHistory: {
+      '0x1234567890abcdef1234567890abcdef12345678': [
+        { hash: '0xabc123def456abc123def456abc123def456abc123def456abc123def456abc1', status: 'confirmed', submittedAt: Date.now() - 86400000, chainId: 1, decodedName: 'Transfer USDC' },
+        { hash: '0x789abc012def789abc012def789abc012def789abc012def789abc012def789a', status: 'pending', submittedAt: Date.now() - 300000, chainId: 1, decodedName: null },
+        { hash: '0xdef012345abc678def012345abc678def012345abc678def012345abc678def0', status: 'failed', submittedAt: Date.now() - 3600000, chainId: 137, decodedName: 'Swap on Uniswap' }
+      ]
+    },
     savedSigners: {},
     lattice: {},
     latticeSettings: { accountLimit: 5, derivation: 'standard', endpointMode: 'default', endpointCustom: '' },
