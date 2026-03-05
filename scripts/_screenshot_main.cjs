@@ -1161,6 +1161,62 @@ const interactions = {
         const badges = document.querySelectorAll('[class*="status"], [class*="health"], [class*="badge"]');
         return 'status indicators found: ' + badges.length;
       })()`
+    },
+    {
+      name: 'chain-rpc-degraded',
+      stateUpdates: [
+        { path: 'main.networks.ethereum.1.connection.primary.status', value: 'degraded' },
+        { path: 'main.networks.ethereum.1.connection.primary.connected', value: true },
+        { path: 'main.networksMeta.ethereum.1.rpcHealth', value: { status: 'degraded', latencyMs: 450 } }
+      ],
+      js: `(() => {
+        // Close discovery modal if open, then click Ethereum to show detail panel
+        const closeBtn = document.querySelector('[data-testid="discovery-close"], [aria-label="Close"]');
+        if (closeBtn) closeBtn.click();
+        // Click Ethereum chain entry to open detail
+        const buttons = Array.from(document.querySelectorAll('main button'));
+        const ethereumBtn = buttons.find(b => b.textContent.includes('Ethereum'));
+        if (ethereumBtn) { ethereumBtn.click(); return 'clicked Ethereum chain for degraded health view'; }
+        return 'no Ethereum button found';
+      })()`
+    },
+    {
+      name: 'chain-custom-rpc',
+      stateUpdates: [
+        { path: 'main.networks.ethereum.1.connection.primary.current', value: 'custom' },
+        { path: 'main.networks.ethereum.1.connection.primary.custom', value: 'https://my-node.example.com' },
+        { path: 'main.networks.ethereum.1.connection.primary.connected', value: true },
+        { path: 'main.networksMeta.ethereum.1.rpcHealth', value: null }
+      ],
+      js: `(() => {
+        // Ethereum detail should still be open; just report the custom RPC url shown
+        const detail = document.querySelector('main');
+        const text = detail ? detail.textContent : '';
+        const hasCustom = text.includes('my-node.example.com') || text.includes('custom');
+        return 'custom RPC visible: ' + hasCustom + ', detail text snippet: ' + text.substring(0, 100);
+      })()`
+    },
+    {
+      name: 'chain-both-connections',
+      stateUpdates: [
+        { path: 'main.networks.ethereum.1.connection.primary.current', value: 'public' },
+        { path: 'main.networks.ethereum.1.connection.primary.custom', value: '' },
+        { path: 'main.networks.ethereum.1.connection.primary.connected', value: true },
+        { path: 'main.networks.ethereum.1.connection.primary.on', value: true },
+        { path: 'main.networks.ethereum.1.connection.secondary.on', value: true },
+        { path: 'main.networks.ethereum.1.connection.secondary.current', value: 'custom' },
+        { path: 'main.networks.ethereum.1.connection.secondary.custom', value: 'https://my-node.example.com' },
+        { path: 'main.networks.ethereum.1.connection.secondary.connected', value: false },
+        { path: 'main.networksMeta.ethereum.1.rpcHealth', value: null }
+      ],
+      js: `(() => {
+        // Ethereum detail should still be open showing both primary and secondary connections
+        const detail = document.querySelector('main');
+        const text = detail ? detail.textContent : '';
+        const hasPrimary = text.includes('Primary');
+        const hasSecondary = text.includes('Secondary');
+        return 'primary: ' + hasPrimary + ', secondary: ' + hasSecondary;
+      })()`
     }
   ],
   tokens: [
