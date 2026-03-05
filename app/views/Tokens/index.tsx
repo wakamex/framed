@@ -94,7 +94,7 @@ export default function TokensView() {
         </p>
         <div className="flex justify-end gap-3">
           <button onClick={() => setConfirmRemove(null)} className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-200 rounded">Cancel</button>
-          <button onClick={() => handleRemove(confirmRemove)} className="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded">Remove</button>
+          <button onClick={() => confirmRemove && handleRemove(confirmRemove)} className="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded">Remove</button>
         </div>
       </Modal>
     </div>

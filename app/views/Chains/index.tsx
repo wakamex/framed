@@ -58,10 +58,11 @@ export default function ChainsView() {
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  {chainColor && (
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: chainColor }} />
+                  {connected && chainColor ? (
+                    <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: chainColor }} title="connected" />
+                  ) : (
+                    <StatusDot status={connected ? 'connected' : chain.on ? 'loading' : 'off'} />
                   )}
-                  <StatusDot status={connected ? 'connected' : chain.on ? 'loading' : 'off'} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-100 truncate">{chain.name}</span>

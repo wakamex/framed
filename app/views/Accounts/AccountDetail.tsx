@@ -11,7 +11,7 @@ import {
   useNetworksMeta
 } from '../../store'
 import { actions } from '../../ipc'
-import { createBalance, sortByTotalValue } from '../../../resources/domain/balance'
+import { createBalance, sortByTotalValue, isNativeCurrency } from '../../../resources/domain/balance'
 import { getSignerDisplayType, isHardwareSigner } from '../../../resources/domain/signer'
 import Address from '../../components/Address'
 import Balance from '../../components/Balance'
@@ -40,7 +40,7 @@ export default function AccountDetail() {
     return balances
       .map((b) => {
         const chainMeta = networksMeta[b.chainId]
-        const quote = chainMeta?.nativeCurrency?.usd
+        const quote = isNativeCurrency(b.address) && chainMeta?.nativeCurrency?.usd
           ? { price: chainMeta.nativeCurrency.usd.price, change24hr: chainMeta.nativeCurrency.usd.change24hr }
           : undefined
         return createBalance(b, quote)
