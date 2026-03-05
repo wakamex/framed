@@ -10,18 +10,18 @@ jest.mock('../../../main/store')
 jest.mock('../../../main/externalData/assets', () => jest.fn(() => ({ start: jest.fn(), stop: jest.fn(), updateSubscription: jest.fn() })))
 jest.mock('../../../main/externalData/balances', () => jest.fn(() => mockBalances))
 
-let dataManager, mockBalances, trayCallback
+let dataManager, mockBalances, trayCallback, networkCallback
 
 beforeEach(() => {
   subscribe.mockClear()
 
   store.set('tray.open', true)
 
-  mockBalances = { start: jest.fn(), stop: jest.fn(), pause: jest.fn(), resume: jest.fn() }
+  mockBalances = { start: jest.fn(), stop: jest.fn(), pause: jest.fn(), resume: jest.fn(), addNetworks: jest.fn(), setAddress: jest.fn(), addTokens: jest.fn() }
   dataManager = externalData()
 
-  // The tray subscription is the 5th call to subscribe
-  // (networks, activeAddress, customTokens, balances, tray)
+  // Subscription order: networks, activeAddress, customTokens, balances, tray
+  networkCallback = subscribe.mock.calls[0][1]
   trayCallback = subscribe.mock.calls[4][1]
 })
 
@@ -54,6 +54,62 @@ describe('hiding and showing the tray', () => {
     setTrayShown(true)
 
     expect(mockBalances.resume).toHaveBeenCalled()
+  })
+})
+
+describe('background balance scanning', () => {
+  it('scans all accounts when a network connects, not just the active one', () => {
+    // Set up two accounts
+    store.main.accounts = {
+      '0xAccount1': { id: '0xAccount1', name: 'Account 1' },
+      '0xAccount2': { id: '0xAccount2', name: 'Account 2' }
+    }
+    // Active account is Account1
+    store.selected = { current: '0xAccount1' }
+
+    // Simulate a network becoming connected
+    store.main.networks = {
+      ethereum: {
+        1: {
+          id: 1,
+          connection: {
+            primary: { connected: true },
+            secondary: { connected: false }
+          }
+        }
+      }
+    }
+
+    networkCallback()
+    jest.advanceTimersByTime(500) // debounce
+
+    // Both accounts should have their balances scanned
+    expect(mockBalances.addNetworks).toHaveBeenCalledWith('0xAccount1', [1])
+    expect(mockBalances.addNetworks).toHaveBeenCalledWith('0xAccount2', [1])
+  })
+
+  it('scans all accounts even when no account is selected', () => {
+    store.main.accounts = {
+      '0xAccount1': { id: '0xAccount1', name: 'Account 1' }
+    }
+    store.selected = { current: '' }
+
+    store.main.networks = {
+      ethereum: {
+        1: {
+          id: 1,
+          connection: {
+            primary: { connected: true },
+            secondary: { connected: false }
+          }
+        }
+      }
+    }
+
+    networkCallback()
+    jest.advanceTimersByTime(500)
+
+    expect(mockBalances.addNetworks).toHaveBeenCalledWith('0xAccount1', [1])
   })
 })
 

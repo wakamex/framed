@@ -15,6 +15,7 @@ export interface DataScanner {
 
 const storeApi = {
   getActiveAddress: () => ((state as any).selected?.current || '') as Address,
+  getAllAddresses: () => Object.keys(state.main.accounts || {}) as Address[],
   getCustomTokens: () => (state.main.tokens.custom || []) as Token[],
   getKnownTokens: (address?: Address) => ((address && (state.main.tokens.known as any)?.[address]) || []) as Token[],
   getConnectedNetworks: () => {
@@ -41,8 +42,12 @@ export default function () {
 
     rates.updateSubscription(connectedChains, activeAccount)
 
-    if (newlyConnected.length > 0 && activeAccount) {
-      balances.addNetworks(activeAccount, newlyConnected)
+    if (newlyConnected.length > 0) {
+      // Scan all accounts on newly connected networks, not just the active one
+      const addresses = storeApi.getAllAddresses()
+      for (const address of addresses) {
+        balances.addNetworks(address, newlyConnected)
+      }
     }
   }, 500)
 
