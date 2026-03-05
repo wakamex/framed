@@ -233,7 +233,8 @@ describe('handleChainBalanceUpdate', () => {
       balance: '0x1000',
       displayBalance: '0.000004096',
       symbol: undefined, // no networksMeta for chain 10
-      address: NATIVE_CURRENCY
+      address: NATIVE_CURRENCY,
+      decimals: 18
     })
   })
 

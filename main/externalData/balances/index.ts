@@ -228,7 +228,8 @@ export default function (state: any) {
         setBalance(address, {
           ...balance,
           symbol: storeApi.getNativeCurrencySymbol(balance.chainId),
-          address: NATIVE_CURRENCY
+          address: NATIVE_CURRENCY,
+          decimals: 18
         })
       })
   }
