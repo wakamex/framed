@@ -590,9 +590,6 @@
   .mb-4 {
     margin-bottom: calc(var(--spacing) * 4);
   }
-  .ml-0\.5 {
-    margin-left: calc(var(--spacing) * 0.5);
-  }
   .ml-1 {
     margin-left: calc(var(--spacing) * 1);
   }
@@ -601,6 +598,9 @@
   }
   .ml-3 {
     margin-left: calc(var(--spacing) * 3);
+  }
+  .ml-4 {
+    margin-left: calc(var(--spacing) * 4);
   }
   .ml-auto {
     margin-left: auto;
@@ -631,6 +631,9 @@
   }
   .h-5 {
     height: calc(var(--spacing) * 5);
+  }
+  .h-12 {
+    height: calc(var(--spacing) * 12);
   }
   .h-64 {
     height: calc(var(--spacing) * 64);
@@ -1112,12 +1115,6 @@
   .text-green-400 {
     color: var(--color-green-400);
   }
-  .text-green-400\/80 {
-    color: color-mix(in oklab, var(--color-green-400) 80%, transparent);
-  }
-  .text-orange-400\/80 {
-    color: color-mix(in oklab, var(--color-orange-400) 80%, transparent);
-  }
   .text-red-400 {
     color: var(--color-red-400);
   }
@@ -1132,9 +1129,6 @@
   }
   .text-yellow-400 {
     color: var(--color-yellow-400);
-  }
-  .text-yellow-400\/80 {
-    color: color-mix(in oklab, var(--color-yellow-400) 80%, transparent);
   }
   .capitalize {
     text-transform: capitalize;

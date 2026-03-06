@@ -36,7 +36,7 @@ link.invoke = (...args: any[]) => {
   })
 }
 
-const safeOrigins = ['file://'].concat(
+const safeOrigins = ['file://', 'null'].concat(
   process.env.NODE_ENV === 'development' ? ['http://localhost:5173'] : []
 )
 

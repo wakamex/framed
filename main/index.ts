@@ -296,7 +296,9 @@ app.on('ready', () => {
     const filePath = url.fileURLToPath(req.url)
 
     if (filePath.startsWith(appOrigin)) {
-      return net.fetch(url.pathToFileURL(filePath).toString())
+      return net.fetch(url.pathToFileURL(filePath).toString(), {
+        bypassCustomProtocolHandlers: true
+      })
     }
 
     return new Response('Forbidden', { status: 403 })

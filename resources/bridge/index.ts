@@ -4,7 +4,7 @@ import rpc from './rpc'
 const unwrap = (v: any) => (v !== undefined || v !== null ? JSON.parse(v) : v)
 const wrap = (v: any) => (v !== undefined || v !== null ? JSON.stringify(v) : v)
 const source = 'bridge:link'
-const safeOrigins = ['file://'].concat(
+const safeOrigins = ['file://', 'null'].concat(
   process.env.NODE_ENV === 'development' ? ['http://localhost:5173'] : []
 )
 
@@ -16,7 +16,7 @@ window.addEventListener(
     if (data.source !== source) {
       if (data.method === 'rpc') {
         return rpc(...(data.args as [any, ...any[]]), (...args: any[]) =>
-          (e.source as Window).postMessage(wrap({ method: 'rpc', id: data.id, args, source }), e.origin)
+          (e.source as Window).postMessage(wrap({ method: 'rpc', id: data.id, args, source }), '*')
         )
       }
       if (data.method === 'event') return ipcRenderer.send(...(data.args as [string, ...any[]]))
