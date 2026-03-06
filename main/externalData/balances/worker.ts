@@ -1,5 +1,4 @@
 import log from 'electron-log'
-import ethProvider from 'eth-provider'
 
 log.transports.console.format = '[scanWorker] {h}:{i}:{s}.{ms} {text}'
 log.transports.console.level = process.env.LOG_WORKER ? 'debug' : 'info'
@@ -12,6 +11,7 @@ import balancesLoader, { BalanceLoader } from './scan'
 import TokenLoader from '../inventory/tokens'
 import { toTokenId } from '../../../resources/domain/balance'
 
+import type { RpcProvider } from '../../multicall/constants'
 import type { Token } from '../../store/state'
 
 interface ExternalDataWorkerMessage {
@@ -22,31 +22,29 @@ interface ExternalDataWorkerMessage {
 let heartbeat: NodeJS.Timeout
 let balances: BalanceLoader
 
-const eth = ethProvider('frame', { origin: 'frame-internal', name: 'scanWorker' })
-const tokenLoader = new TokenLoader()
+// IPC-proxied provider: RPC requests are relayed through the parent process
+// instead of connecting to the app's public API on port 1248
+const pending = new Map<string, { resolve: (v: any) => void; reject: (e: Error) => void }>()
+let rpcId = 0
 
-eth.on('error', (e) => {
-  log.error('Error in balances worker', e)
-  disconnect()
-})
-
-eth.on('connect', async () => {
-  await tokenLoader.start()
-
-  balances = balancesLoader(eth)
-
-  sendToMainProcess({ type: 'ready' })
-})
-
-async function getChains() {
-  try {
-    const chains: string[] = await eth.request({ method: 'wallet_getChains' })
-    return chains.map((chain) => parseInt(chain))
-  } catch (e) {
-    log.error('could not load chains', e)
-    return []
+const eth: RpcProvider = {
+  request(payload) {
+    return new Promise((resolve, reject) => {
+      const id = String(rpcId++)
+      pending.set(id, { resolve, reject })
+      sendToMainProcess({ type: 'rpc', id, payload })
+    })
   }
 }
+
+const tokenLoader = new TokenLoader()
+
+// Initialize immediately — no loopback connection needed
+;(async () => {
+  await tokenLoader.start()
+  balances = balancesLoader(eth)
+  sendToMainProcess({ type: 'ready' })
+})()
 
 function sendToMainProcess(data: any) {
   if (process.send) {
@@ -67,10 +65,8 @@ async function updateBlacklist(address: Address, chains: number[]) {
 
 async function tokenBalanceScan(address: Address, tokensToOmit: Token[] = [], chains: number[]) {
   try {
-    // for chains that support multicall, we can attempt to load every token that we know about,
-    // for all other chains we need to call each contract individually so don't scan every contract
     const omitSet = new Set(tokensToOmit.map(toTokenId))
-    const eligibleChains = (chains || (await getChains())).filter(chainSupportsScan)
+    const eligibleChains = chains.filter(chainSupportsScan)
     const tokenList = tokenLoader.getTokens(eligibleChains)
     const tokens = tokenList.filter((token) => !omitSet.has(toTokenId(token)))
 
@@ -96,10 +92,9 @@ async function fetchTokenBalances(address: Address, tokens: Token[]) {
   }
 }
 
-async function chainBalanceScan(address: string, chains?: number[]) {
+async function chainBalanceScan(address: string, chains: number[]) {
   try {
-    const availableChains = chains || (await getChains())
-    const chainBalances = await balances.getCurrencyBalances(address, availableChains)
+    const chainBalances = await balances.getCurrencyBalances(address, chains)
 
     sendToMainProcess({ type: 'chainBalances', balances: chainBalances, address })
   } catch (e) {
@@ -131,9 +126,21 @@ const messageHandler: { [command: string]: (...params: any) => void } = {
   }
 }
 
-process.on('message', (message: ExternalDataWorkerMessage) => {
+process.on('message', (message: any) => {
+  // Handle RPC responses from the parent process
+  if (message.type === 'rpcResult') {
+    const p = pending.get(message.id)
+    if (p) {
+      pending.delete(message.id)
+      if (message.error) p.reject(new Error(message.error))
+      else p.resolve(message.result)
+    }
+    return
+  }
+
+  // Handle commands from the controller
   log.debug(`received message: ${message.command} [${message.args}]`)
 
   const args = message.args || []
-  messageHandler[message.command](...args)
+  messageHandler[message.command]?.(...args)
 })

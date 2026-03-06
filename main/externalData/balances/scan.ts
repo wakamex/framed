@@ -7,7 +7,7 @@ import multicall, { Call, supportsChain as multicallSupportsChain } from '../../
 import erc20TokenAbi from './erc-20-abi'
 import { groupByChain, TokensByChain } from './reducers'
 
-import type EthereumProvider from 'ethereum-provider'
+import type { RpcProvider } from '../../multicall/constants'
 import type { Balance, Token } from '../../store/state'
 
 const erc20Abi = erc20TokenAbi as Abi
@@ -39,7 +39,7 @@ function createBalance(rawBalance: string, decimals: number): ExternalBalance {
   }
 }
 
-export default function (eth: EthereumProvider) {
+export default function (eth: RpcProvider) {
   function balanceCalls(owner: string, tokens: TokenDefinition[]): Call<bigint, ExternalBalance>[] {
     return tokens.map((token) => ({
       target: token.address,

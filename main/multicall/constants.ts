@@ -1,4 +1,6 @@
-import type EthereumProvider from 'ethereum-provider'
+export interface RpcProvider {
+  request(payload: { method: string; params?: any[]; chainId?: string }): Promise<any>
+}
 
 export enum MulticallVersion {
   V1 = 1,
@@ -11,7 +13,7 @@ export type PostProcessor<R, T> = (val: R) => T
 export interface MulticallConfig {
   address: Address
   chainId: number
-  provider: EthereumProvider
+  provider: RpcProvider
   version: MulticallVersion
 }
 

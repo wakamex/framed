@@ -2,22 +2,20 @@ import { encodeFunctionData, decodeFunctionResult, parseAbi, type Abi, type Hex 
 import { addHexPrefix } from '@ethereumjs/util'
 import log from 'electron-log'
 
-import type EthereumProvider from 'ethereum-provider'
-
 import {
   abi,
   functionSignatureMatcher,
   multicallAddresses,
   MulticallVersion
 } from './constants'
-import type { Call, CallResult, MulticallConfig } from './constants'
+import type { Call, CallResult, MulticallConfig, RpcProvider } from './constants'
 
 export { Call }
 
 const multicallAbi = parseAbi(abi)
 const memoizedAbis: Record<string, Abi> = {}
 
-function chainConfig(chainId: number, eth: EthereumProvider): MulticallConfig {
+function chainConfig(chainId: number, eth: RpcProvider): MulticallConfig {
   return {
     address: multicallAddresses[chainId].address,
     version: multicallAddresses[chainId].version,
@@ -120,7 +118,7 @@ export function supportsChain(chainId: number) {
   return chainId in multicallAddresses
 }
 
-export default function (chainId: number, eth: EthereumProvider) {
+export default function (chainId: number, eth: RpcProvider) {
   const config = chainConfig(chainId, eth)
 
   async function call<R, T>(calls: Call<R, T>[]): Promise<CallResult<T>[]> {

@@ -83,7 +83,14 @@ export default function (state: any) {
   function start() {
     log.verbose('starting balances updates')
 
-    workerController = new BalancesWorkerController()
+    try {
+      workerController = new BalancesWorkerController()
+    } catch (e) {
+      log.error('Failed to start balances worker', e)
+      workerController = null
+      setTimeout(restart, RESTART_WAIT * 1000)
+      return
+    }
 
     workerController.once('close', handleClose)
     workerController.on('chainBalances', (address, balances) => {

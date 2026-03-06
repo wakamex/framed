@@ -1,9 +1,10 @@
 import log from 'electron-log'
-import path from 'path'
 import { ChildProcess, fork } from 'child_process'
 import { EventEmitter } from 'stream'
 
 import { toTokenId } from '../../../resources/domain/balance'
+import { resolveWorkerPath } from '../../worker/paths'
+import Chains from '../../chains'
 
 import type { CurrencyBalance, TokenBalance } from './scan'
 import type { Token } from '../../store/state'
@@ -12,6 +13,12 @@ const BOOTSTRAP_TIMEOUT_SECONDS = 20
 
 interface WorkerMessage {
   type: string
+}
+
+interface RpcMessage extends WorkerMessage {
+  type: 'rpc'
+  id: string
+  payload: { method: string; params?: any[]; chainId?: string }
 }
 
 interface TokenBalanceMessage extends Omit<WorkerMessage, 'type'> {
@@ -42,8 +49,7 @@ export default class BalancesWorkerController extends EventEmitter {
     super()
 
     const workerArgs = process.env.NODE_ENV === 'development' ? ['--inspect=127.0.0.1:9230'] : []
-    const bundledPath = path.resolve(__dirname, 'workers', 'balances.js')
-    const workerPath = require('fs').existsSync(bundledPath) ? bundledPath : path.resolve(__dirname, 'worker.js')
+    const workerPath = resolveWorkerPath(__dirname, 'balances.js')
     this.worker = fork(workerPath, [], { execArgv: workerArgs })
 
     log.info('created balances worker, pid:', this.worker.pid)
@@ -58,6 +64,11 @@ export default class BalancesWorkerController extends EventEmitter {
 
     this.worker.on('message', (message: WorkerMessage) => {
       log.debug(`balances controller received message: ${JSON.stringify(message)}`)
+
+      if (message.type === 'rpc') {
+        this.handleRpcRequest(message as RpcMessage)
+        return
+      }
 
       if (message.type === 'ready') {
         this.clearBootstrapTimeout()
@@ -129,6 +140,39 @@ export default class BalancesWorkerController extends EventEmitter {
   }
 
   // private
+  private handleRpcRequest(message: RpcMessage) {
+    const { id, payload } = message
+    const chainIdNum = payload.chainId ? parseInt(payload.chainId, 16) : undefined
+    const targetChain = chainIdNum ? { type: 'ethereum', id: chainIdNum } : undefined
+
+    try {
+      Chains.send(
+        { method: payload.method, params: payload.params || [] },
+        (response) => {
+          try {
+            if (!this.isWorkerReachable()) return
+
+            if (response.error) {
+              this.worker.send({ type: 'rpcResult', id, error: response.error.message })
+            } else {
+              this.worker.send({ type: 'rpcResult', id, result: response.result })
+            }
+          } catch (e) {
+            log.error('error sending RPC result to worker', e)
+          }
+        },
+        targetChain
+      )
+    } catch (e) {
+      log.error('error forwarding RPC request from worker', e)
+      try {
+        if (this.isWorkerReachable()) {
+          this.worker.send({ type: 'rpcResult', id, error: 'RPC relay failed' })
+        }
+      } catch {}
+    }
+  }
+
   private stopWorker() {
     if (this.heartbeat) {
       clearInterval(this.heartbeat)
@@ -145,7 +189,7 @@ export default class BalancesWorkerController extends EventEmitter {
   }
 
   // sending messages
-  private sendCommandToWorker(command: string, args: any[] = []) {
+  private sendCommandToWorker(command: string, args: unknown[] = []) {
     log.debug(`sending command ${command} to worker`)
 
     try {
