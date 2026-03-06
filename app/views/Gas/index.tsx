@@ -92,18 +92,26 @@ export default function GasView() {
   const chains = useChainGasData()
   const connectedChains = chains.filter((c) => c.connected)
   const hasData = connectedChains.some((c) => c.gasPrice !== null)
-
+  const chainsWithHistory = connectedChains.filter((c) => c.history.length > 1)
 
   return (
     <div className="space-y-6 max-w-4xl">
       <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wide">Gas Tracker</h2>
 
       {connectedChains.length > 0 ? (
-        <div className="space-y-3">
-          {connectedChains.map((chain) => (
-            <ChainGasCard key={chain.id} chain={chain} />
-          ))}
-        </div>
+        <>
+          {/* Combined chart */}
+          {chainsWithHistory.length > 0 && (
+            <GasChart chains={chainsWithHistory} />
+          )}
+
+          {/* Per-chain summary cards */}
+          <div className="space-y-3">
+            {connectedChains.map((chain) => (
+              <ChainGasCard key={chain.id} chain={chain} />
+            ))}
+          </div>
+        </>
       ) : (
         <div className="text-sm text-gray-500 py-8 text-center">
           No connected chains. Enable chains in the Chains view to track gas.
@@ -120,7 +128,7 @@ export default function GasView() {
 function ChainGasCard({ chain }: { chain: ChainGasData }) {
   return (
     <div className="bg-gray-800/50 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
             className="w-2 h-2 rounded-full shrink-0"
@@ -128,55 +136,158 @@ function ChainGasCard({ chain }: { chain: ChainGasData }) {
           />
           <span className="text-sm font-medium text-gray-200">{chain.name}</span>
         </div>
-        {chain.gasPrice !== null && (
-          <div className="flex items-baseline gap-1">
-            <span className="text-lg font-semibold text-gray-100 tabular-nums">{formatGwei(chain.gasPrice)}</span>
-            <span className="text-xs text-gray-500">gwei</span>
+        {chain.gasPrice !== null ? (
+          <div className="flex items-center gap-3">
+            {(chain.baseFee !== null || chain.priorityFee !== null) && (
+              <div className="flex gap-3 text-xs text-gray-500">
+                {chain.baseFee !== null && <span>Base: {formatGwei(chain.baseFee)}g</span>}
+                {chain.priorityFee !== null && <span>Priority: {formatGwei(chain.priorityFee)}g</span>}
+              </div>
+            )}
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-semibold text-gray-100 tabular-nums">{formatGwei(chain.gasPrice)}</span>
+              <span className="text-xs text-gray-500">gwei</span>
+            </div>
           </div>
+        ) : (
+          <span className="text-sm text-gray-600">Waiting for data...</span>
         )}
       </div>
-
-      {/* Sparkline */}
-      {chain.history.length > 1 && (
-        <Sparkline points={chain.history} color={chain.color || '#6b7280'} />
-      )}
-
-      {/* Base / Priority breakdown */}
-      {(chain.baseFee !== null || chain.priorityFee !== null) && (
-        <div className="flex gap-4 mt-2 text-xs text-gray-500">
-          {chain.baseFee !== null && <span>Base: {formatGwei(chain.baseFee)}g</span>}
-          {chain.priorityFee !== null && <span>Priority: {formatGwei(chain.priorityFee)}g</span>}
-        </div>
-      )}
-
-      {chain.gasPrice === null && chain.history.length <= 1 && (
-        <div className="text-sm text-gray-600 py-2">Waiting for data...</div>
-      )}
     </div>
   )
 }
 
-function Sparkline({ points, color }: { points: GasPoint[]; color: string }) {
-  const W = 400
-  const H = 48
+// --- Combined multi-series gas chart ---
 
-  const values = points.map((p) => p.gwei)
-  const min = Math.min(...values)
-  const max = Math.max(...values)
+const CHART_W = 600
+const CHART_H = 140
+const PADDING = { top: 12, right: 12, bottom: 28, left: 48 }
+const PLOT_W = CHART_W - PADDING.left - PADDING.right
+const PLOT_H = CHART_H - PADDING.top - PADDING.bottom
+
+function formatTime(ts: number): string {
+  const d = new Date(ts)
+  const h = d.getHours()
+  const m = d.getMinutes().toString().padStart(2, '0')
+  const ampm = h >= 12 ? 'p' : 'a'
+  const h12 = h % 12 || 12
+  return `${h12}:${m}${ampm}`
+}
+
+function niceGweiTicks(min: number, max: number): number[] {
   const range = max - min || 1
+  const rawStep = range / 4
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)))
+  const steps = [1, 2, 5, 10]
+  const step = steps.find((s) => s * mag >= rawStep)! * mag
 
-  const pathPoints = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * W
-    const y = H - ((v - min) / range) * (H - 4) - 2
-    return `${x},${y}`
-  })
+  const start = Math.floor(min / step) * step
+  const ticks: number[] = []
+  for (let v = start; v <= max + step * 0.01; v += step) {
+    ticks.push(Math.round(v * 1000) / 1000)
+  }
+  return ticks
+}
 
-  const linePath = `M${pathPoints.join(' L')}`
+function GasChart({ chains }: { chains: ChainGasData[] }) {
+  const { tMin, tMax, vMin, vMax, timeTicks, gweiTicks } = useMemo(() => {
+    let tMin = Infinity, tMax = -Infinity, vMin = Infinity, vMax = -Infinity
+    for (const chain of chains) {
+      for (const p of chain.history) {
+        if (p.t < tMin) tMin = p.t
+        if (p.t > tMax) tMax = p.t
+        if (p.gwei < vMin) vMin = p.gwei
+        if (p.gwei > vMax) vMax = p.gwei
+      }
+    }
+
+    // Add 5% padding to value range
+    const vRange = vMax - vMin || 1
+    vMin = Math.max(0, vMin - vRange * 0.05)
+    vMax = vMax + vRange * 0.05
+
+    const gweiTicks = niceGweiTicks(vMin, vMax)
+    // Expand bounds to include tick edges
+    if (gweiTicks.length > 0) {
+      vMin = Math.min(vMin, gweiTicks[0])
+      vMax = Math.max(vMax, gweiTicks[gweiTicks.length - 1])
+    }
+
+    // Time ticks: pick ~4-6 evenly spaced labels
+    const tRange = tMax - tMin || 1
+    const numTimeTicks = Math.min(6, Math.max(2, Math.ceil(tRange / 60000)))
+    const timeTicks: number[] = []
+    for (let i = 0; i <= numTimeTicks; i++) {
+      timeTicks.push(tMin + (tRange * i) / numTimeTicks)
+    }
+
+    return { tMin, tMax, vMin, vMax, timeTicks, gweiTicks }
+  }, [chains])
+
+  const toX = (t: number) => PADDING.left + ((t - tMin) / (tMax - tMin || 1)) * PLOT_W
+  const toY = (v: number) => PADDING.top + PLOT_H - ((v - vMin) / (vMax - vMin || 1)) * PLOT_H
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12" preserveAspectRatio="none">
-      <path d={linePath} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" style={{ filter: 'brightness(1.4)' }} />
-    </svg>
+    <div className="bg-gray-800/50 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Gas History</span>
+        <div className="flex items-center gap-3 flex-wrap">
+          {chains.map((chain) => (
+            <div key={chain.id} className="flex items-center gap-1.5">
+              <span className="w-2.5 h-0.5 rounded-full" style={{ backgroundColor: chain.color || '#6b7280' }} />
+              <span className="text-xs text-gray-400">{chain.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="w-full" style={{ height: 160 }}>
+        {/* Y-axis gridlines and labels */}
+        {gweiTicks.map((v) => (
+          <g key={`y-${v}`}>
+            <line
+              x1={PADDING.left} x2={CHART_W - PADDING.right}
+              y1={toY(v)} y2={toY(v)}
+              stroke="#374151" strokeWidth="0.5"
+            />
+            <text
+              x={PADDING.left - 6} y={toY(v) + 3.5}
+              textAnchor="end" fill="#6b7280" fontSize="9"
+            >
+              {v < 1 ? v.toFixed(2) : v < 10 ? v.toFixed(1) : Math.round(v)}
+            </text>
+          </g>
+        ))}
+
+        {/* X-axis labels */}
+        {timeTicks.map((t, i) => (
+          <text
+            key={`t-${i}`}
+            x={toX(t)} y={CHART_H - 4}
+            textAnchor="middle" fill="#6b7280" fontSize="9"
+          >
+            {formatTime(t)}
+          </text>
+        ))}
+
+        {/* Data series */}
+        {chains.map((chain) => {
+          if (chain.history.length < 2) return null
+          const points = chain.history.map((p) => `${toX(p.t)},${toY(p.gwei)}`).join(' L')
+          return (
+            <path
+              key={chain.id}
+              d={`M${points}`}
+              fill="none"
+              stroke={chain.color || '#6b7280'}
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+              style={{ filter: 'brightness(1.3)' }}
+            />
+          )
+        })}
+      </svg>
+    </div>
   )
 }
 

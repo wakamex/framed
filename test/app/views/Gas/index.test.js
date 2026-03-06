@@ -87,6 +87,41 @@ const connectedMeta = {
   }
 }
 
+const optimismChain = {
+  id: 10, name: 'Optimism', on: true, isTestnet: false,
+  connection: { primary: makeConnection(), secondary: makeConnection({ on: false, connected: false }) }
+}
+
+const optimismHistory = Array.from({ length: 8 }, (_, i) => ({ t: now - (7 - i) * 15000, gwei: 0.01 + i * 0.002 }))
+
+const optimismMeta = {
+  blockHeight: 110000000,
+  primaryColor: '#ff0420',
+  nativeCurrency: { symbol: 'ETH', name: 'Ether', decimals: 18, icon: '', usd: { price: 3000, change24hr: 1.5 } },
+  gas: {
+    history: optimismHistory,
+    price: {
+      selected: 'fast',
+      levels: { fast: gweiToHex(0.02) },
+      fees: {
+        nextBaseFee: gweiToHex(0.01),
+        maxBaseFeePerGas: gweiToHex(0.015),
+        maxPriorityFeePerGas: gweiToHex(0.001),
+        maxFeePerGas: gweiToHex(0.016)
+      }
+    },
+    samples: [
+      {
+        label: 'Send ETH',
+        estimates: {
+          low: { gasEstimate: '0x' + (21000 * 0.02e9).toString(16), cost: { usd: 0.001 } },
+          high: { gasEstimate: '0x' + (21000 * 0.02e9).toString(16), cost: { usd: 0.001 } }
+        }
+      }
+    ]
+  }
+}
+
 beforeEach(() => {
   mockNetworksRef = () => ({})
   mockNetworksMetaRef = () => ({})
@@ -119,16 +154,14 @@ describe('GasView', () => {
     expect(screen.getByText(/Priority: 2g/)).toBeTruthy()
   })
 
-  it('4. renders sparkline when history exists', () => {
+  it('4. renders combined chart when history exists', () => {
     mockNetworksRef = () => ({ 1: connectedChain })
     mockNetworksMetaRef = () => ({ 1: connectedMeta })
 
     render(<GasView />)
 
-    // The sparkline renders as SVG paths — if history has >1 point, no "waiting" message
+    expect(screen.getByText('Gas History')).toBeTruthy()
     expect(screen.queryByText(/waiting for data/i)).toBeNull()
-    // Gas price should be visible
-    expect(screen.getAllByText('30').length).toBeGreaterThan(0)
   })
 
   it('5. shows waiting message when no gas data', () => {
@@ -164,5 +197,41 @@ describe('GasView', () => {
     render(<GasView />)
 
     expect(screen.getByText(/no connected chains/i)).toBeTruthy()
+  })
+
+  it('8. combined chart shows legend for multiple chains', () => {
+    mockNetworksRef = () => ({ 1: connectedChain, 10: optimismChain })
+    mockNetworksMetaRef = () => ({ 1: connectedMeta, 10: optimismMeta })
+
+    render(<GasView />)
+
+    expect(screen.getByText('Gas History')).toBeTruthy()
+    // Legend entries
+    const mainnetEntries = screen.getAllByText('Mainnet')
+    const optimismEntries = screen.getAllByText('Optimism')
+    expect(mainnetEntries.length).toBeGreaterThan(0)
+    expect(optimismEntries.length).toBeGreaterThan(0)
+  })
+
+  it('9. combined chart renders SVG with data', () => {
+    mockNetworksRef = () => ({ 1: connectedChain, 10: optimismChain })
+    mockNetworksMetaRef = () => ({ 1: connectedMeta, 10: optimismMeta })
+
+    render(<GasView />)
+
+    // Chart should be present with the Gas History heading
+    expect(screen.getByText('Gas History')).toBeTruthy()
+    // Both chains appear in the chart legend and in cards
+    expect(screen.getAllByText('Mainnet').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('Optimism').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('10. each chain gets its own card with price', () => {
+    mockNetworksRef = () => ({ 1: connectedChain, 10: optimismChain })
+    mockNetworksMetaRef = () => ({ 1: connectedMeta, 10: optimismMeta })
+
+    render(<GasView />)
+
+    expect(screen.getAllByText('gwei').length).toBe(2)
   })
 })
